@@ -42,7 +42,22 @@ npm run web:dev               # painel em http://localhost:5173
 `VITE_DEMO` e preencha `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (do Supabase do metrics) e
 `VITE_N8N_WEBHOOK_URL`.
 
-## Subir
+## Publicar o painel (Cloudflare Pages)
+No painel da Cloudflare: **Workers & Pages › Create › Pages › Connect to Git** e escolha este repositório.
+
+| Campo | Valor |
+|---|---|
+| Framework preset | Vite (ou None) |
+| Root directory | `web` |
+| Build command | `npm run build` |
+| Build output directory | `dist` |
+| Variáveis de ambiente | `VITE_DEMO` = `1` para a demonstração; para usar de verdade, no lugar dela: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` e `VITE_N8N_WEBHOOK_URL` |
+
+As variáveis `VITE_*` entram **no build** (o Vite grava no JavaScript): mudou uma, é preciso refazer o deploy.
+A versão do Node vem de `web/.node-version`. Rotas como `/app/automacoes` funcionam porque, sem `404.html`,
+o Pages devolve o `index.html` e o React Router assume.
+
+## Subir o backend
 1. **Banco** — no Supabase do metrics, aplicar `supabase/migrations/*` em ordem e **expor o schema `octaplus`**
    no PostgREST (Settings › API › Exposed schemas; self-hosted: `PGRST_DB_SCHEMAS`).
 2. **Permissões** — dono/superadmin do metrics já entram. Para outros perfis de acesso, adicionar o recurso

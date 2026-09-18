@@ -1,3 +1,4 @@
 web/dist/
 web/.env.local
 node_modules/
+.wrangler/
