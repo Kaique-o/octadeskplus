@@ -1,0 +1,19 @@
+{
+  "name": "octadeskplus",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Octadesk Plus: réguas de WhatsApp sobre o metrics, enviando pelo Octadesk. Painel em web/, banco em supabase/, motor em n8n/.",
+  "scripts": {
+    "n8n:build": "node n8n/montar-fluxos.js",
+    "n8n:import": "node n8n/importar-via-api.js",
+    "web:dev": "npm --prefix web run dev",
+    "web:build": "npm --prefix web run build",
+    "db:test": "node supabase/tests/testar.mjs",
+    "n8n:test": "node n8n/tests/testar-codigo.mjs",
+    "test": "npm run db:test && npm run n8n:test"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.3.0"
+  }
+}

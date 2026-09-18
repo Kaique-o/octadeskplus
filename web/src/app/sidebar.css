@@ -1,0 +1,314 @@
+/* Menu lateral do painel. Todas as regras vivem sob .painel para não vazar estilo. */
+
+.painel {
+  /* --- cores base --- */
+  --bg: #f3f8fe;
+  --surface: #ffffff;
+  --border: #e2e8f5;
+  --divider: color-mix(in oklab, var(--border) 60%, var(--surface));
+
+  --text-primary: #29354d;
+  --text-secondary: color-mix(in oklab, var(--text-primary) 80%, var(--surface));
+  --text-muted: color-mix(in oklab, var(--text-primary) 48%, var(--surface));
+
+  --primary: #1366c9;
+  --primary-content: #ffffff;
+  --primary-soft: color-mix(in oklab, var(--primary) 8%, var(--surface));
+  --primary-border: color-mix(in oklab, var(--primary) 30%, var(--surface));
+
+  --danger: #b91c1c;
+  --danger-soft: color-mix(in oklab, var(--danger) 8%, var(--surface));
+
+  /* --- forma e movimento --- */
+  --radius-control: 10px;
+  --radius-full: 999px;
+  --shadow-card: 0 8px 24px rgb(15 23 42 / 4%);
+  --shadow-card-hover: 0 12px 32px rgb(15 23 42 / 8%);
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --fast: 130ms;
+
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+  font-family: Poppins, Inter, "Segoe UI", Roboto, Arial, sans-serif;
+  color: var(--text-primary);
+}
+
+.painel .sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  /* topo maior que a base de propósito: com valores iguais a marca parece colada na borda */
+  padding: 30px 16px 24px;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.painel .conteudo {
+  padding: 24px 32px;
+  background: var(--bg);
+  min-width: 0;
+  overflow-y: auto;
+  max-height: 100vh;
+}
+
+/* ---------------------------------------------------------------- marca */
+.painel .brand-linha {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.painel .brand-voltar {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-muted);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+.painel .brand-voltar:hover { background: var(--bg); color: var(--text-primary); }
+.painel .brand-voltar:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.painel .brand {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  text-decoration: none;
+  border-radius: var(--radius-control);
+  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+.painel .brand:hover { background: var(--bg); color: var(--primary); }
+.painel .brand:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.painel .brand-nome {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* sem botão voltar: o recuo alinha o logo com os ícones do menu (padding: 0 14px) */
+.painel .brand-linha--solo .brand {
+  gap: 12px;
+  padding: 10px 14px;
+}
+
+/* ---------------------------------------------------------------- navegação */
+.painel .nav { display: grid; gap: 8px; }
+
+.painel .nav-item {
+  height: 48px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--text-secondary);
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+.painel .nav-item:hover { background: var(--bg); color: var(--primary); }
+.painel .nav-item.active { background: var(--primary-soft); color: var(--primary); font-weight: 700; }
+.painel .nav-item:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.painel .nav-item:disabled { opacity: .5; cursor: not-allowed; }
+.painel .nav-item:disabled:hover { background: none; color: var(--text-secondary); }
+.painel .nav-item svg { flex: none; }
+
+/* ---------------------------------------------------------------- rodapé */
+.painel .sidebar-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--divider);
+  display: grid;
+  gap: 10px;
+}
+
+/* card do usuário */
+.painel .sidebar-user {
+  position: relative;
+  cursor: pointer;
+  min-height: 58px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: border-color var(--fast) var(--ease), box-shadow var(--fast) var(--ease);
+}
+.painel .sidebar-user:hover { border-color: var(--primary-border); box-shadow: var(--shadow-card-hover); }
+.painel .sidebar-user:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+
+.painel .avatar {
+  width: 32px;
+  height: 32px;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: #29354d;
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  display: grid;
+  place-items: center;
+}
+
+.painel .user-meta {
+  display: grid;
+  gap: 1px;
+  line-height: 1.1;
+  min-width: 0;
+  overflow: hidden;
+}
+.painel .user-meta strong {
+  font-size: 13px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.painel .user-meta span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.painel .user-chevron {
+  margin-left: auto;
+  color: var(--text-muted);
+  flex: none;
+  transition: transform 160ms ease, color var(--fast) var(--ease);   /* mesma duração do menu suspenso */
+}
+/* aberto: a seta aponta para o menu, que abre para cima */
+.painel .sidebar-user[aria-expanded="true"] .user-chevron { transform: rotate(180deg); color: var(--primary); }
+
+@media (prefers-reduced-motion: reduce) {
+  .painel .user-chevron { transition: none; }
+}
+
+.painel .user-menu {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% + 8px);
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow-card-hover);
+  display: grid;
+  gap: 2px;
+  opacity: 0;
+  transform: translateY(4px);
+  pointer-events: none;
+  transition: opacity 160ms ease, transform 160ms ease;
+  z-index: 20;
+}
+.painel .user-menu.open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+
+.painel .user-menu-item {
+  height: 38px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: var(--text-secondary);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+.painel .user-menu-item:hover { background: var(--bg); color: var(--primary); }
+.painel .user-menu-item.danger:hover { background: var(--danger-soft); color: var(--danger); }
+.painel .user-menu-item svg { flex: none; }
+
+/* ---------------------------------------------------------------- topo (só no mobile) */
+.painel .topo { display: none; }
+.painel .overlay { display: none; }
+
+@media (max-width: 900px) {
+  .painel { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+
+  .painel .topo {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 56px;
+    padding: 0 12px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .painel .topo-botao {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 10px;
+    background: none;
+    color: var(--text-primary);
+    display: grid;
+    place-items: center;
+    cursor: pointer;
+  }
+  .painel .topo-titulo { font-weight: 800; letter-spacing: -0.03em; }
+
+  .painel .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 40;
+    width: 280px;
+    max-width: 85vw;
+    transform: translateX(-100%);
+    transition: transform .2s ease;
+  }
+  .painel.menu-aberto .sidebar { transform: translateX(0); }
+
+  .painel.menu-aberto .overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 35;
+    background: rgb(0 0 0 / 45%);
+    cursor: pointer;
+  }
+
+  .painel .conteudo { padding: 16px; max-height: none; }
+}

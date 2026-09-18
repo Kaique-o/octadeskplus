@@ -1,0 +1,200 @@
+{
+  "name": "Octadesk Plus | Entrada (webhooks)",
+  "nodes": [
+    {
+      "id": "747167a7-8c94-4a13-be65-4788b051ff0f",
+      "name": "Webhook externo",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "e101c94a-0e5f-407c-8716-037a4ba5eee1",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "octaplus/in/:automacaoId",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      }
+    },
+    {
+      "id": "17cb0c6d-17fc-4a34-afbb-911449b4bca6",
+      "name": "Preparar evento",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "parameters": {
+        "jsCode": "// Webhook externo (sistemas próprios e campanhas do metrics). Mesmo contrato do Bridge da Favo:\n// segredo no header X-Bridge-Secret ou em ?secret=; id de deduplicação opcional.\nconst r = $input.first().json;\nconst body = r.body || {};\nreturn [{ json: {\n  automacao_id: r.params.automacaoId,\n  segredo: r.headers['x-bridge-secret'] || r.query.secret || '',\n  payload: body,\n  dedupe: r.headers['x-bridge-event-id'] || body.event_id || body.dedupe_key || null,\n} }];\n"
+      }
+    },
+    {
+      "id": "d156d672-6d75-41f5-9aa0-c81d02b8242d",
+      "name": "Registrar evento externo",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_PG",
+          "name": "Supabase Postgres"
+        }
+      },
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select octaplus.receber_webhook($1::uuid, $2, $3::jsonb, $4) as r",
+        "options": {
+          "queryReplacement": "={{ [$json.automacao_id, $json.segredo, JSON.stringify($json.payload), $json.dedupe] }}"
+        }
+      }
+    },
+    {
+      "id": "d6ee899d-1573-480e-be18-0a5b7c7dc342",
+      "name": "Responder externo",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.r) }}",
+        "options": {
+          "responseCode": "={{ $json.r.motivo === 'nao_autorizado' ? 401 : 200 }}"
+        }
+      }
+    },
+    {
+      "id": "fb0eca8d-0846-4df1-958d-6ca26d26581a",
+      "name": "Webhook do Octadesk",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        240
+      ],
+      "webhookId": "0bd37e40-3b22-4029-8e48-2be16294661e",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "octaplus/octadesk/:segredo",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      }
+    },
+    {
+      "id": "5eed59b4-7646-4c21-aece-08bbf5010f63",
+      "name": "Registrar evento do Octadesk",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        480,
+        240
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_PG",
+          "name": "Supabase Postgres"
+        }
+      },
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select octaplus.receber_octadesk($1, $2, $3::jsonb) as r",
+        "options": {
+          "queryReplacement": "={{ [$json.params.segredo, $json.body.event || '', JSON.stringify($json.body.data || {})] }}"
+        }
+      }
+    },
+    {
+      "id": "ff369a82-64cb-46c7-bed3-4f662f6c8b5b",
+      "name": "Responder Octadesk",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        720,
+        240
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.r) }}",
+        "options": {
+          "responseCode": "={{ $json.r.ok === false ? 401 : 200 }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook externo": {
+      "main": [
+        [
+          {
+            "node": "Preparar evento",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Preparar evento": {
+      "main": [
+        [
+          {
+            "node": "Registrar evento externo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar evento externo": {
+      "main": [
+        [
+          {
+            "node": "Responder externo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook do Octadesk": {
+      "main": [
+        [
+          {
+            "node": "Registrar evento do Octadesk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Registrar evento do Octadesk": {
+      "main": [
+        [
+          {
+            "node": "Responder Octadesk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "active": false
+}

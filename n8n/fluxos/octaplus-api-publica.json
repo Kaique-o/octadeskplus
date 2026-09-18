@@ -1,0 +1,95 @@
+{
+  "name": "Octadesk Plus | API pública /v1/format",
+  "nodes": [
+    {
+      "id": "217321fd-7a44-4a51-91b8-44215be5d91a",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "dd8b7c1c-bdeb-45d3-b594-bcbe85f0a102",
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "octaplus/v1/format",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      }
+    },
+    {
+      "id": "1f047ff2-3f64-45ba-adee-4319c6f7b344",
+      "name": "Validar chave e formatar",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.5,
+      "position": [
+        240,
+        0
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "SUPABASE_PG",
+          "name": "Supabase Postgres"
+        }
+      },
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select octaplus.api_formatar_telefone($1, $2) as r",
+        "options": {
+          "queryReplacement": "={{ [String($json.headers.authorization || '').replace(/^Bearer\\s+/i, ''), String($json.body.phone ?? '')] }}"
+        }
+      }
+    },
+    {
+      "id": "4dd279e0-e6fa-4e84-9c14-80b3c0c1da83",
+      "name": "Responder",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        480,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json.r) }}",
+        "options": {
+          "responseCode": "={{ $json.r.error === 'invalid_api_key' ? 401 : ($json.r.ok ? 200 : 422) }}"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validar chave e formatar",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validar chave e formatar": {
+      "main": [
+        [
+          {
+            "node": "Responder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Sao_Paulo",
+    "saveDataSuccessExecution": "none",
+    "saveDataErrorExecution": "all"
+  },
+  "active": false
+}

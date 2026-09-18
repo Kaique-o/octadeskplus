@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+/* Identidade Octadesk: azul #1366c9, azul escuro #29354d, fundo #f3f8fe, Poppins nos títulos */
+@theme {
+  /* Identidade Octadesk: azul #1366c9, azul escuro #29354d, fundo #f3f8fe */
+  --color-brand: #1366c9;
+  --color-brand-hover: #0f52a3;
+  --color-brand-soft: rgba(19, 102, 201, 0.1);
+  --color-ink: #29354d;
+  --color-fog: #f3f8fe;
+  --color-line: #e2e8f5;
+  --color-muted: #70757f;
+  --color-danger: #b91c1c;
+  --color-success: #15803d;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-title: "Poppins", "Inter", ui-sans-serif, sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+body { @apply bg-white text-ink antialiased; }
+
+@utility btn { @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-50; }
+@utility btn-primary { @apply btn bg-brand text-white hover:bg-brand-hover; }
+@utility btn-brand { @apply btn bg-brand text-white hover:bg-brand-hover; }
+@utility btn-ghost { @apply btn border border-line bg-white text-ink hover:bg-fog; }
+@utility btn-danger { @apply btn border border-red-200 bg-red-50 text-danger hover:bg-red-100; }
+@utility input { @apply w-full rounded-lg border border-line bg-white px-3 py-2.5 text-sm outline-none transition focus:border-brand focus:ring-2 focus:ring-brand/30; }
+@utility label { @apply mb-1.5 block text-sm font-medium text-ink; }
+@utility card { @apply rounded-xl border border-line bg-white; }
+@utility chip { @apply inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium; }
+@utility honeycomb {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='56' height='98' viewBox='0 0 56 98'%3E%3Cpath d='M28 66L0 50V16L28 0l28 16v34L28 66zm0 32L0 82V66l28 16 28-16v16L28 98z' fill='none' stroke='%231366C9' stroke-opacity='.08'/%3E%3C/svg%3E");
+}
+
+@keyframes pop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.animate-pop { animation: pop .5s ease both; }
