@@ -161,7 +161,8 @@ Detectores rodam por **pg_cron** no próprio banco (`octaplus.detectar_eventos()
 
 Desvios em relação ao desenho: os detectores usam **janela de tempo + deduplicação** em vez da tabela
 `cursores` (mais simples e já cobre o caso); o gatilho de etapa da IA chama-se `conversa_classificada`
-para não confundir com `octa_conversa_encerrada`; Membros/Empresa deram lugar à aba **Não perturbe**; o
+para não confundir com `octa_conversa_encerrada`; Empresa e Usuários voltaram como abas de Configurações (21/09/2026): Empresa grava em `configuracao`,
+Usuários lista os do metrics só para leitura (`listar_usuarios`); a aba **Não perturbe** continua; o
 botão "Sincronizar" e a validação vão ao n8n **pelo banco** (`pedir_sincronizacao`), sem o navegador chamar
 o n8n direto.
 

@@ -22,7 +22,8 @@ type Row = Record<string, unknown>;
 
 // ---------------------------------------------------------------- configuração e integração
 const configuracao: Row = {
-  id: true, fuso: 'America/Sao_Paulo', numero_envio_padrao: '+5511949602880', emails_alerta: ['comercial@exemplo.com'],
+  id: true, fuso: 'America/Sao_Paulo', empresa_nome: 'Grupo Skytech', empresa_cnpj: '12345678000190',
+  empresa_telefone: '(11) 94960-2880', empresa_site: 'https://gruposkytech.com', numero_envio_padrao: '+5511949602880', emails_alerta: ['comercial@exemplo.com'],
   limite_contato_horas: 24, janela_deteccao_horas: 48,
   horario_comercial: { perDay: {
     0: { enabled: false, windows: [{ start: '09:00', end: '18:00' }] },
@@ -195,6 +196,12 @@ const noDia = (valor: unknown, chave: string) => String(valor ?? '').slice(0, 10
 
 const rpcs: Record<string, (args: Record<string, unknown>) => unknown> = {
   pode: () => true,
+  listar_usuarios: () => [
+    { id: USER, nome: 'Kaique Demo', email: 'kaique@exemplo.com', papel: 'owner', perfil_acesso: null, pode_ver: true, pode_editar: true },
+    { id: uid(), nome: 'Cristal Vendas', email: 'cristal@exemplo.com', papel: 'viewer', perfil_acesso: 'Comercial', pode_ver: true, pode_editar: true },
+    { id: uid(), nome: 'Bruno Expedição', email: 'bruno@exemplo.com', papel: 'viewer', perfil_acesso: 'Expedição', pode_ver: true, pode_editar: false },
+    { id: uid(), nome: null, email: 'financeiro@exemplo.com', papel: 'viewer', perfil_acesso: 'Financeiro', pode_ver: false, pode_editar: false },
+  ],
   segredos_preenchidos: () => ['octadesk_api_key', 'octadesk_usuario', 'octadesk_senha', 'octadesk_tenant'],
   pedir_sincronizacao: () => { integracao.sincronizacao_pedida_em = iso(new Date()); integracao.sincronizado_em = iso(new Date()); return null; },
   salvar_integracao: ({ p }) => {

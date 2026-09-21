@@ -14,6 +14,9 @@ export const supabase = DEMO ? (demoClient as unknown as typeof realClient) : re
 const n8nUrl = (import.meta.env.VITE_N8N_WEBHOOK_URL as string) || (DEMO ? 'https://n8n.seu-dominio.com/webhook' : '');
 export const N8N_WEBHOOK_URL = n8nUrl.replace(/\/$/, '');
 
+/** Onde fica o metrics (cadastro de usuários e permissões). */
+export const METRICS_URL = ((import.meta.env.VITE_METRICS_URL as string) || 'https://metrics.gruposkytech.com').replace(/\/$/, '');
+
 /** URL que um sistema externo (ou uma campanha do metrics) chama para disparar a automação. */
 export const urlWebhookExterno = (id: string, segredo: string) => `${N8N_WEBHOOK_URL}/octaplus/in/${id}?secret=${segredo}`;
 

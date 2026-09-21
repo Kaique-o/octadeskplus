@@ -9,6 +9,8 @@ create function auth.uid() returns uuid language sql stable as $$ select nullif(
 
 create type public.app_role as enum ('owner', 'superadmin', 'viewer');
 create table public.user_roles (id uuid primary key default gen_random_uuid(), user_id uuid not null, role app_role not null, profile_id uuid);
+create table public.profiles (id uuid primary key, email text not null, full_name text);
+create table public.access_profiles (id uuid primary key default gen_random_uuid(), name text not null unique);
 create table public.access_profile_permissions (id uuid primary key default gen_random_uuid(), profile_id uuid not null, resource text not null, action text not null);
 
 create function public.has_role(_user_id uuid, _role app_role) returns boolean language sql stable security definer set search_path = public as $$

@@ -40,6 +40,16 @@ export const AJUDA: Record<string, { titulo: string; texto: string }> = {
       + 'números, templates aprovados, filas e tags. A transferência para filas usa o login de um usuário do Octadesk e é opcional. '
       + 'Nas regras de envio ficam o horário comercial e o limite de contato por cliente.',
   },
+  '/app/configuracoes/empresa': {
+    titulo: 'Empresa',
+    texto: 'Dados cadastrais da empresa e o fuso horário. O fuso é o que o horário comercial das regras de envio usa '
+      + 'para decidir se uma mensagem sai agora ou espera a próxima janela.',
+  },
+  '/app/configuracoes/usuarios': {
+    titulo: 'Usuários',
+    texto: 'Os usuários são os do metrics. "Edita" e "Só vê" vêm do perfil de acesso (recurso octaplus); dono e administrador '
+      + 'do metrics editam sempre. Convidar, remover e mudar permissões é feito no metrics.',
+  },
   '/app/configuracoes/api': {
     titulo: 'API',
     texto: 'Endpoint para padronizar telefones no formato E.164 antes de gravar no seu sistema. '

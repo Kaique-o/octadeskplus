@@ -86,7 +86,8 @@ hora (respondeu / comprou).
 9. **Horário comercial no formato do app original** — `perDay["0".."6"]` (0 = domingo) com lista de janelas.
 10. **Editar Code node é editar `n8n/codigo/*.js`** e rodar `npm run n8n:build`.
 11. **Menu vem de `web/src/app/nav.ts`**: principal só **Automações**; a **home** (banner + estatísticas) é pelo
-    logo; **Configurações** (rodapé) tem as abas Integrações · API · Não perturbe; **Meu perfil** no card do
+    logo; **Configurações** (rodapé) tem as abas Integrações · Empresa · Usuários · API · Não perturbe
+    (Usuários é só leitura, via `listar_usuarios()`); **Meu perfil** no card do
     usuário. Rota nova nasce com verbete em `AJUDA`.
 12. **Modo demonstração isolado** — `VITE_DEMO=1` troca o cliente Supabase por memória (`lib/demo.ts`), com o
     mesmo formato das tabelas `octaplus`. Nenhuma tela tem `if (DEMO)`.

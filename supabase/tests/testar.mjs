@@ -231,5 +231,25 @@ teste('API /v1/format', f.ok && f.e164 === '+5511988887777');
 const tel = await um(`select octaplus.normalizar_telefone('11 8888-7777') a, octaplus.normalizar_telefone('5521 3333-4444') b, octaplus.normalizar_telefone('123') c`);
 teste('telefone: nono dígito, fixo e inválido', tel.a === '+5511988887777' && tel.b === '+552133334444' && tel.c === null);
 
+// ---------------------------------------------------------------- empresa e usuários
+await comoMotor();
+const vendas = (await um(`insert into public.access_profiles (name) values ('Vendas') returning id`)).id;
+const vendedora = (await um(`insert into auth.users (email) values ('vendas@x') returning id`)).id;
+await q(`insert into public.access_profile_permissions (profile_id, resource, action) values ($1, 'octaplus', 'ver')`, [vendas]);
+await q(`insert into public.user_roles (user_id, role, profile_id) values ($1, 'viewer', $2)`, [vendedora, vendas]);
+await q(`insert into public.profiles (id, email, full_name) values ($1, 'dono@x', 'Dono'), ($2, 'visitante@x', null), ($3, 'vendas@x', 'Carla')`, [dono, semAcesso, vendedora]);
+await comoUsuario(dono);
+await q(`update octaplus.configuracao set empresa_nome = 'Skytech', empresa_cnpj = '12345678000190' where id`);
+teste('empresa: dados gravados na configuração', (await um(`select empresa_nome n from octaplus.configuracao`)).n === 'Skytech');
+erro = '';
+try { await q(`update octaplus.configuracao set empresa_cnpj = '123' where id`); } catch (e) { erro = e.message; }
+teste('empresa: CNPJ precisa ter 14 dígitos', erro.includes('check'), erro);
+const us = await q(`select * from octaplus.listar_usuarios()`);
+const carla = us.find((u) => u.email === 'vendas@x');
+teste('usuários: lista os do metrics com papel e perfil', us.length === 3 && us.find((u) => u.email === 'dono@x').papel === 'owner'
+  && carla.perfil_acesso === 'Vendas' && carla.pode_ver && !carla.pode_editar, JSON.stringify(us));
+await comoUsuario(semAcesso);
+teste('usuários: sem permissão não vê ninguém', (await q(`select * from octaplus.listar_usuarios()`)).length === 0);
+
 console.log(falhas ? `\n${falhas} teste(s) falharam` : '\ntodos os testes passaram');
 process.exit(falhas ? 1 : 0);

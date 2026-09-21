@@ -3,6 +3,8 @@ import { PageHeader } from '../components/ui';
 
 const ABAS = [
   { to: '/app/configuracoes', end: true, label: 'Integrações' },
+  { to: '/app/configuracoes/empresa', end: false, label: 'Empresa' },
+  { to: '/app/configuracoes/usuarios', end: false, label: 'Usuários' },
   { to: '/app/configuracoes/api', end: false, label: 'API' },
   { to: '/app/configuracoes/nao-perturbe', end: false, label: 'Não perturbe' },
 ];
@@ -11,7 +13,7 @@ const ABAS = [
 export default function SettingsTabs() {
   return (
     <>
-      <PageHeader title="Configurações" subtitle="Octadesk, horário de envio, chaves de API e quem não recebe mensagens. Usuários e permissões ficam no metrics." />
+      <PageHeader title="Configurações" subtitle="Octadesk, dados da empresa, usuários, chaves de API e quem não recebe mensagens." />
       <div className="mb-6 flex gap-1 border-b border-line">
         {ABAS.map((a) => (
           <NavLink key={a.to} to={a.to} end={a.end}

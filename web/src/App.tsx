@@ -9,6 +9,8 @@ import AuthShell from './auth/AuthShell';
 import AppLayout from './app/AppLayout';
 import Home from './app/Home';
 import Integrations from './app/Integrations';
+import Empresa from './app/Empresa';
+import Usuarios from './app/Usuarios';
 import ApiKeys from './app/ApiKeys';
 import NaoPerturbe from './app/NaoPerturbe';
 import Automations from './app/Automations';
@@ -45,6 +47,8 @@ export default function App() {
         <Route path="automacoes/nova" element={<AutomationWizard />} />
         <Route path="automacoes/:id" element={<AutomationWizard />} />
         <Route path="configuracoes" element={<Integrations />} />
+        <Route path="configuracoes/empresa" element={<Empresa />} />
+        <Route path="configuracoes/usuarios" element={<Usuarios />} />
         <Route path="configuracoes/api" element={<ApiKeys />} />
         <Route path="configuracoes/nao-perturbe" element={<NaoPerturbe />} />
         <Route path="perfil" element={<Profile />} />
