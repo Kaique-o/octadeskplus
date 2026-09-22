@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink } from 'react-router-dom';
-import { ChevronDown, HelpCircle, LogOut, Settings, UserCircle2 } from 'lucide-react';
+import { ArrowLeftRight, ChevronDown, HelpCircle, LogOut, Settings, UserCircle2 } from 'lucide-react';
+import { useEmpresas } from '../lib/empresas';
 
 export interface FooterUsuario {
   nome: string;
@@ -26,6 +27,7 @@ const iniciais = (nome: string) => {
 /** Rodapé da sidebar: ajuda, configurações e card do usuário. */
 export default function SidebarFooter({ usuario, onAjuda, onSair, onNavegar }: Props) {
   const [aberto, setAberto] = useState(false);
+  const { atual, sair: sairDaEmpresa } = useEmpresas();
   const card = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export default function SidebarFooter({ usuario, onAjuda, onSair, onNavegar }: P
         <span className="avatar">{iniciais(usuario.nome)}</span>
         <span className="user-meta">
           <strong>{usuario.nome}</strong>
-          <span>{usuario.cargo}</span>
+          <span>{atual ? `${usuario.cargo} · ${atual.nome}` : usuario.cargo}</span>
         </span>
         <ChevronDown size={16} strokeWidth={1.8} className="user-chevron" />
 
@@ -72,6 +74,9 @@ export default function SidebarFooter({ usuario, onAjuda, onSair, onNavegar }: P
           <Link to="/app/configuracoes" className="user-menu-item" onClick={onNavegar}>
             <Settings size={16} strokeWidth={1.8} />Configurações
           </Link>
+          <button type="button" className="user-menu-item" onClick={() => { onNavegar(); sairDaEmpresa(); }}>
+            <ArrowLeftRight size={16} strokeWidth={1.8} />Trocar empresa
+          </button>
           <button type="button" className="user-menu-item danger" onClick={onSair}>
             <LogOut size={16} strokeWidth={1.8} />Sair
           </button>

@@ -2,10 +2,13 @@ import type { ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { ShieldOff } from 'lucide-react';
 import { useSession } from './lib/session';
+import { useEmpresas } from './lib/empresas';
 import { supabase } from './lib/supabase';
 import Login from './auth/Login';
 import ResetPassword from './auth/ResetPassword';
 import AuthShell from './auth/AuthShell';
+import EscolherEmpresa from './auth/EscolherEmpresa';
+import AdmEmpresas from './auth/AdmEmpresas';
 import AppLayout from './app/AppLayout';
 import Home from './app/Home';
 import Integrations from './app/Integrations';
@@ -35,13 +38,23 @@ function RequireAuth({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+// Sem empresa escolhida, passa antes pela tela de escolha.
+function RequireEmpresa({ children }: { children: ReactNode }) {
+  const { atual } = useEmpresas();
+  const loc = useLocation();
+  if (!atual) return <Navigate to={`/empresa?next=${encodeURIComponent(loc.pathname)}`} replace />;
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/app" replace />} />
       <Route path="/entrar" element={<Login />} />
       <Route path="/redefinir-senha" element={<ResetPassword />} />
-      <Route path="/app" element={<RequireAuth><AppLayout /></RequireAuth>}>
+      <Route path="/empresa" element={<RequireAuth><EscolherEmpresa /></RequireAuth>} />
+      <Route path="/adm" element={<RequireAuth><AdmEmpresas /></RequireAuth>} />
+      <Route path="/app" element={<RequireAuth><RequireEmpresa><AppLayout /></RequireEmpresa></RequireAuth>}>
         <Route index element={<Home />} />
         <Route path="automacoes" element={<Automations />} />
         <Route path="automacoes/nova" element={<AutomationWizard />} />
