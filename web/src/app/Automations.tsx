@@ -156,10 +156,7 @@ export default function Automations() {
   return (
     <div>
       <PageHeader title="Automações" subtitle="Réguas de WhatsApp em cima dos dados do metrics, enviadas pelo Octadesk."
-        actions={<>
-          <button className="btn-ghost" onClick={() => setArquivadas(!arquivadas)}>{arquivadas ? 'Ver ativas' : 'Arquivadas'}</button>
-          {podeEditar && <Link to="/app/automacoes/nova" className="btn-primary"><Plus className="h-4 w-4" />Criar nova automação</Link>}
-        </>} />
+        actions={podeEditar && <Link to="/app/automacoes/nova" className="btn-primary"><Plus className="h-4 w-4" />Criar nova automação</Link>} />
 
       {loading ? <Spinner /> : itens.length === 0 ? (
         <EmptyState icon={<Workflow />} title={arquivadas ? 'Nenhuma automação arquivada' : 'Crie sua primeira automação'}
@@ -172,6 +169,17 @@ export default function Automations() {
               onToggle={(v) => toggle(a, v)} onDuplicar={() => duplicar(a)} onArquivar={() => arquivar(a, !arquivadas)} />
           ))}
         </div>
+      )}
+
+      {!loading && (
+        <>
+          <hr className="mt-8 border-line" />
+          <div className="mt-4 flex justify-center">
+            <button className="btn-ghost" onClick={() => setArquivadas(!arquivadas)}>
+              {arquivadas ? <><Workflow className="h-4 w-4" />Ver ativas</> : <><Archive className="h-4 w-4" />Arquivadas</>}
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
