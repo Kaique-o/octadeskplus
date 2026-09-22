@@ -197,7 +197,7 @@ function LinhaCompacta({ a, resumo, onAbrir }: { a: Automacao; resumo?: Resumo; 
   );
 }
 
-const POR_PAGINA = 5;
+const POR_PAGINA = 10;
 
 export default function Automations() {
   const nav = useNavigate();
