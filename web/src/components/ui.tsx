@@ -57,11 +57,11 @@ export function Toggle({ checked, onChange, disabled }: { checked: boolean; onCh
   );
 }
 
-export function Modal({ open, title, onClose, children, footer }: { open: boolean; title: string; onClose: () => void; children: ReactNode; footer?: ReactNode }) {
+export function Modal({ open, title, onClose, children, footer, largo }: { open: boolean; title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; largo?: boolean }) {
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onMouseDown={onClose}>
-      <div className="card w-full max-w-lg animate-pop shadow-xl" onMouseDown={(e) => e.stopPropagation()}>
+      <div className={`card w-full ${largo ? 'max-w-4xl' : 'max-w-lg'} animate-pop shadow-xl`} onMouseDown={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-line px-5 py-4">
           <h2 className="font-title text-lg font-semibold">{title}</h2>
           <button onClick={onClose} className="rounded p-1 hover:bg-fog" aria-label="Fechar"><X className="h-5 w-5" /></button>

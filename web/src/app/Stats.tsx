@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Spinner, StatusChip } from '../components/ui';
+import { ChevronLeft, ChevronRight, List } from 'lucide-react';
+import { Modal, Spinner, StatusChip } from '../components/ui';
 import { ACOES, MOTIVOS } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import type { TipoAcao } from '../lib/types';
@@ -14,6 +15,33 @@ interface Linha {
 }
 
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
+const POR_PAGINA = 10;
+
+function TabelaExecucoes({ linhas }: { linhas: Linha[] }) {
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead className="bg-fog text-left text-xs text-muted">
+          <tr><th className="px-4 py-2 font-medium">Automação</th><th className="px-4 py-2 font-medium">Ação</th><th className="px-4 py-2 font-medium">Status</th><th className="px-4 py-2 font-medium">Quando</th><th className="px-4 py-2 font-medium">Detalhe</th></tr>
+        </thead>
+        <tbody className="divide-y divide-line">
+          {linhas.map((l) => (
+            <tr key={l.id}>
+              <td className="px-4 py-2.5 font-medium">{l.automacoes?.nome}</td>
+              <td className="px-4 py-2.5 text-muted">{l.automacao_acoes ? ACOES[l.automacao_acoes.tipo]?.label : '—'}</td>
+              <td className="px-4 py-2.5"><StatusChip status={l.status} /></td>
+              <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-muted">{new Date(l.concluido_em ?? l.agendado_para).toLocaleString('pt-BR')}</td>
+              <td className="max-w-72 truncate px-4 py-2.5 text-muted" title={l.erro ?? ''}>
+                {l.codigo_erro ? MOTIVOS[l.codigo_erro] ?? `${l.codigo_erro}${l.erro ? ` — ${l.erro}` : ''}` : l.erro ?? '—'}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
 /** Bloco de estatísticas — mora na tela inicial, abaixo do banner. */
@@ -25,19 +53,21 @@ export default function Stats() {
   const [dias, setDias] = useState<Dia[]>([]);
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [loading, setLoading] = useState(true);
+  const [pagina, setPagina] = useState(0);
+  const [todas, setTodas] = useState(false);
 
   useEffect(() => { supabase.from('automacoes').select('id, nome').order('nome').then(({ data }) => setAutomacoes((data as { id: string; nome: string }[]) ?? [])); }, []);
 
   const load = useCallback(async () => {
     setLoading(true);
     let q = supabase.from('execucoes').select('id, status, erro, codigo_erro, agendado_para, concluido_em, automacoes(nome), automacao_acoes(tipo)')
-      .gte('criado_em', de).lte('criado_em', `${ate}T23:59:59`).order('criado_em', { ascending: false }).limit(50);
+      .gte('criado_em', de).lte('criado_em', `${ate}T23:59:59`).order('criado_em', { ascending: false }).limit(500);
     if (automacaoId) q = q.eq('automacao_id', automacaoId);
     const [{ data: d }, { data: l }] = await Promise.all([
       supabase.rpc('estatisticas_diarias', { p_de: de, p_ate: ate, p_automacao: automacaoId || null }),
       q,
     ]);
-    setDias((d as Dia[]) ?? []); setLinhas((l as unknown as Linha[]) ?? []); setLoading(false);
+    setDias((d as Dia[]) ?? []); setLinhas((l as unknown as Linha[]) ?? []); setPagina(0); setLoading(false);
   }, [de, ate, automacaoId]);
   useEffect(() => { load(); }, [load]);
 
@@ -47,6 +77,9 @@ export default function Stats() {
     semEnvio: s.semEnvio + Number(d.acoes_sem_envio) + Number(d.gatilhos_ignorados), erros: s.erros + Number(d.acoes_erro),
   }), { gatilhos: 0, envios: 0, respostas: 0, compras: 0, valor: 0, semEnvio: 0, erros: 0 }), [dias]);
   const max = Math.max(1, ...dias.map((d) => Number(d.acoes)));
+  const paginas = Math.max(1, Math.ceil(linhas.length / POR_PAGINA));
+  const paginaAtual = Math.min(pagina, paginas - 1);
+  const daPagina = linhas.slice(paginaAtual * POR_PAGINA, (paginaAtual + 1) * POR_PAGINA);
   const taxa = t.envios ? Math.round((t.respostas / t.envios) * 100) : 0;
 
   const cards: [string, string, string, string?][] = [
@@ -110,27 +143,26 @@ export default function Stats() {
       <section className="card overflow-hidden">
         <h2 className="border-b border-line px-5 py-3 font-semibold">Últimas execuções</h2>
         {linhas.length === 0 ? <p className="px-5 py-8 text-center text-sm text-muted">Nenhuma execução no período.</p> : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-fog text-left text-xs text-muted">
-                <tr><th className="px-4 py-2 font-medium">Automação</th><th className="px-4 py-2 font-medium">Ação</th><th className="px-4 py-2 font-medium">Status</th><th className="px-4 py-2 font-medium">Quando</th><th className="px-4 py-2 font-medium">Detalhe</th></tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {linhas.map((l) => (
-                  <tr key={l.id}>
-                    <td className="px-4 py-2.5 font-medium">{l.automacoes?.nome}</td>
-                    <td className="px-4 py-2.5 text-muted">{l.automacao_acoes ? ACOES[l.automacao_acoes.tipo]?.label : '—'}</td>
-                    <td className="px-4 py-2.5"><StatusChip status={l.status} /></td>
-                    <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-muted">{new Date(l.concluido_em ?? l.agendado_para).toLocaleString('pt-BR')}</td>
-                    <td className="max-w-72 truncate px-4 py-2.5 text-muted" title={l.erro ?? ''}>
-                      {l.codigo_erro ? MOTIVOS[l.codigo_erro] ?? `${l.codigo_erro}${l.erro ? ` — ${l.erro}` : ''}` : l.erro ?? '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <>
+            <TabelaExecucoes linhas={daPagina} />
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-3">
+              <nav className="flex items-center gap-2" aria-label="Paginação das execuções">
+                <button className="btn-ghost px-2.5 py-2" disabled={paginaAtual === 0} onClick={() => setPagina(paginaAtual - 1)} aria-label="Página anterior">
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <span className="text-sm text-muted tabular-nums">Página {paginaAtual + 1} de {paginas}</span>
+                <button className="btn-ghost px-2.5 py-2" disabled={paginaAtual >= paginas - 1} onClick={() => setPagina(paginaAtual + 1)} aria-label="Próxima página">
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </nav>
+              <button className="inline-flex items-center gap-2 rounded px-1 text-sm font-semibold text-brand transition-colors hover:text-brand-hover hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+                onClick={() => setTodas(true)}><List className="h-4 w-4" />Ver todas ({linhas.length})</button>
+            </div>
+          </>
         )}
+        <Modal open={todas} largo title={`Últimas execuções (${linhas.length})`} onClose={() => setTodas(false)}>
+          <div className="-mx-5 -my-4"><TabelaExecucoes linhas={linhas} /></div>
+        </Modal>
       </section>
     </div>
   );
