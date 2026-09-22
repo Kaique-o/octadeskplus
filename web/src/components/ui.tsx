@@ -41,10 +41,18 @@ export function Toggle({ checked, onChange, disabled }: { checked: boolean; onCh
     <button
       type="button" role="switch" aria-checked={checked} disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors disabled:opacity-50 ${checked ? 'bg-brand' : 'bg-gray-300'}`}
+      className="block h-6 w-11 shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-brand/40 disabled:opacity-50"
     >
-      {/* flex + translate em vez de absolute/left em px: no Firefox com zoom fracionado o arredondamento deslocava a bolinha */}
-      <span className={`h-5 w-5 shrink-0 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
+      {/* SVG em vez de caixas CSS: o Firefox com zoom fracionado arredonda trilho e bolinha para pixels diferentes
+          e a bolinha encostava na borda. Num SVG os dois são uma figura só, sempre concêntricos; folga de 3px
+          para que, mesmo em zoom baixo, sobre ao menos um pixel físico de azul em volta. */}
+      <svg viewBox="0 0 44 24" className="block h-full w-full" aria-hidden="true">
+        <rect width="44" height="24" rx="12" className={`transition-colors ${checked ? 'fill-brand' : 'fill-gray-300'}`} />
+        <circle
+          cx="12" cy="12" r="9" className="fill-white transition-transform"
+          style={{ transform: checked ? 'translateX(20px)' : 'none', filter: 'drop-shadow(0 1px 1.5px rgb(0 0 0 / 0.15))' }}
+        />
+      </svg>
     </button>
   );
 }
