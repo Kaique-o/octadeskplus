@@ -41,9 +41,10 @@ export function Toggle({ checked, onChange, disabled }: { checked: boolean; onCh
     <button
       type="button" role="switch" aria-checked={checked} disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${checked ? 'bg-brand' : 'bg-gray-300'}`}
+      className={`inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors disabled:opacity-50 ${checked ? 'bg-brand' : 'bg-gray-300'}`}
     >
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${checked ? 'left-[22px]' : 'left-0.5'}`} />
+      {/* flex + translate em vez de absolute/left em px: no Firefox com zoom fracionado o arredondamento deslocava a bolinha */}
+      <span className={`h-5 w-5 shrink-0 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : 'translate-x-0'}`} />
     </button>
   );
 }
