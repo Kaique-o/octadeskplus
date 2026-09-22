@@ -286,7 +286,9 @@ export default function Automations() {
         <>
           <hr className="mt-8 border-line" />
           <div className="mt-4 flex justify-center">
-            <button className="btn-ghost" onClick={() => setArquivadas(!arquivadas)}>
+            {/* mesmo matiz da linha (#e2e8f5), escurecido só até 4,5:1 sobre o fundo */}
+            <button className="inline-flex items-center gap-2 rounded px-1 text-sm font-medium text-[#5e719c] transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+              onClick={() => setArquivadas(!arquivadas)}>
               {arquivadas ? <><Workflow className="h-4 w-4" />Ver ativas</> : <><Archive className="h-4 w-4" />Arquivadas</>}
             </button>
           </div>
