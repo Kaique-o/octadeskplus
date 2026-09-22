@@ -27,9 +27,9 @@ function resumoParametros(a: Automacao) {
   return partes.length ? partes.join(' · ') : '—';
 }
 
-function Card({ a, resumo, templates, arquivada, podeEditar, onToggle, onDuplicar, onArquivar }: {
+function Card({ a, resumo, templates, arquivada, podeEditar, onToggle, onDuplicar, onArquivar, onAbrir }: {
   a: Automacao; resumo?: Resumo; templates: Template[]; arquivada: boolean; podeEditar: boolean;
-  onToggle: (v: boolean) => void; onDuplicar: () => void; onArquivar: () => void;
+  onToggle: (v: boolean) => void; onDuplicar: () => void; onArquivar: () => void; onAbrir: () => void;
 }) {
   const [menu, setMenu] = useState(false);
   const acoes = [...(a.automacao_acoes ?? [])].sort((x, y) => (x.posicao ?? 0) - (y.posicao ?? 0));
@@ -45,7 +45,11 @@ function Card({ a, resumo, templates, arquivada, podeEditar, onToggle, onDuplica
   ];
 
   return (
-    <div className="card p-5">
+    // o card inteiro abre a edição; toggle, menu e links dentro dele continuam fazendo só o que fazem
+    <div
+      className={`card p-5 ${arquivada ? '' : 'cursor-pointer transition hover:border-brand hover:shadow-sm'}`}
+      onClick={(e) => { if (!arquivada && !(e.target as HTMLElement).closest('button, a, [role="switch"], .fixed')) onAbrir(); }}
+    >
       <div className="flex flex-wrap items-center gap-3">
         {!arquivada && <Toggle checked={a.ativa} disabled={!podeEditar} onChange={onToggle} />}
         <div className="min-w-0 flex-1">
@@ -251,7 +255,7 @@ export default function Automations() {
         <div className="space-y-4">
           {daPagina.map((a) => (
             <Card key={a.id} a={a} resumo={resumo[a.id!]} templates={templates} arquivada={arquivadas} podeEditar={podeEditar}
-              onToggle={(v) => toggle(a, v)} onDuplicar={() => duplicar(a)} onArquivar={() => arquivar(a, !arquivadas)} />
+              onToggle={(v) => toggle(a, v)} onDuplicar={() => duplicar(a)} onArquivar={() => arquivar(a, !arquivadas)} onAbrir={() => nav(`/app/automacoes/${a.id}`)} />
           ))}
         </div>
       )}
