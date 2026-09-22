@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
-import { Archive, ArchiveRestore, Copy, MoreVertical, Pencil, Plus, Workflow } from 'lucide-react';
-import { EmptyState, PageHeader, Spinner, Toggle } from '../components/ui';
+import { Archive, ArchiveRestore, ChevronLeft, ChevronRight, Copy, List, MoreVertical, Pencil, Plus, Workflow } from 'lucide-react';
+import { EmptyState, Modal, PageHeader, Spinner, Toggle } from '../components/ui';
 import { ACOES, FONTES, GATILHOS, POLITICAS_CONVERSA, UNIDADES } from '../lib/constants';
 import { errorMessage, supabase } from '../lib/supabase';
 import { useSession } from '../lib/session';
@@ -114,26 +115,105 @@ function Card({ a, resumo, templates, arquivada, podeEditar, onToggle, onDuplica
   );
 }
 
+/** Texto que aparece ao passar o mouse (ou focar). Vai para o body para não ser cortado pela rolagem do modal. */
+function Dica({ rotulo, children }: { rotulo: string; children: ReactNode }) {
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const abrir = (e: { currentTarget: HTMLElement }) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setPos({ x: Math.min(r.left, window.innerWidth - 336), y: r.bottom + 6 });
+  };
+  return (
+    <span
+      tabIndex={0} onMouseEnter={abrir} onMouseLeave={() => setPos(null)} onFocus={abrir} onBlur={() => setPos(null)}
+      className="chip cursor-help bg-brand-soft text-brand underline decoration-dotted underline-offset-2 outline-none focus-visible:ring-2 focus-visible:ring-brand/40"
+    >
+      {rotulo}
+      {pos && createPortal(
+        <div role="tooltip" style={{ left: Math.max(8, pos.x), top: pos.y }}
+          className="card pointer-events-none fixed z-[60] w-80 p-3 text-left text-xs font-normal text-ink shadow-lg">
+          {children}
+        </div>,
+        document.body,
+      )}
+    </span>
+  );
+}
+
+/** Linha compacta do modal "Ver todas": nome, números, e Gatilho/Ações com detalhe no hover. Clicar abre a edição. */
+function LinhaCompacta({ a, resumo, onAbrir }: { a: Automacao; resumo?: Resumo; onAbrir: () => void }) {
+  const acoes = [...(a.automacao_acoes ?? [])].sort((x, y) => (x.posicao ?? 0) - (y.posicao ?? 0));
+  const taxa = resumo?.envios ? Math.round((resumo.respostas / resumo.envios) * 100) : null;
+  return (
+    <li>
+      <div
+        role="button" tabIndex={0} onClick={onAbrir}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAbrir(); } }}
+        className="card cursor-pointer px-4 py-3 transition hover:border-brand hover:shadow-sm focus-visible:border-brand focus-visible:outline-none"
+      >
+        <div className="flex items-center gap-2">
+          <p className="min-w-0 flex-1 truncate font-semibold">{a.nome}</p>
+          <span className={`chip ${a.ativa ? 'bg-green-100 text-success' : 'bg-fog text-muted'}`}>{a.ativa ? 'Ativa' : 'Pausada'}</span>
+        </div>
+        <p className="mt-1 text-xs text-muted tabular-nums">
+          {resumo
+            ? <>{resumo.executadas} executadas · <span className="text-danger">{resumo.erros} erros</span> · {taxa == null ? '—' : `${taxa}%`} respostas · <span className="text-success">{resumo.compras} compras</span></>
+            : 'Nunca executada'}
+        </p>
+        <div className="mt-2 flex gap-2">
+          <Dica rotulo="Gatilho">
+            <p className="font-semibold">{GATILHOS[a.gatilho].label}</p>
+            <p className="mt-0.5 text-muted">{FONTES.find((f) => f.value === a.fonte)?.label ?? a.fonte}</p>
+            <p className="mt-1.5">Parâmetros: {resumoParametros(a)}</p>
+            <p>Condições: {a.condicoes?.ativas ? `sim (${a.condicoes.lista?.length ?? 0})` : 'não'}</p>
+            <p>Envio: {quando(a).toLowerCase()}</p>
+          </Dica>
+          <Dica rotulo={`Ações (${acoes.length})`}>
+            {acoes.length === 0 ? <p className="text-muted">Nenhuma ação configurada.</p> : (
+              <ol className="space-y-1">
+                {acoes.map((x, i) => <li key={x.id ?? i}>{i + 1}. {ACOES[x.tipo].label} <span className="text-muted">— {esperaDaAcao(x, i).toLowerCase()}</span></li>)}
+              </ol>
+            )}
+          </Dica>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+const POR_PAGINA = 3;
+
 export default function Automations() {
   const nav = useNavigate();
   const { podeEditar } = useSession();
   const [itens, setItens] = useState<Automacao[]>([]);
+  // ativas no momento da carga: pausar um card não o tira da página na hora
+  const [fixas, setFixas] = useState<Set<string>>(new Set());
   const [resumo, setResumo] = useState<Record<string, Resumo>>({});
   const [templates, setTemplates] = useState<Template[]>([]);
   const [arquivadas, setArquivadas] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [pagina, setPagina] = useState(0);
+  const [todas, setTodas] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     let q = supabase.from('automacoes').select('*, automacao_acoes(*)').order('atualizado_em', { ascending: false });
     q = arquivadas ? q.not('arquivada_em', 'is', null) : q.is('arquivada_em', null);
     const [{ data }, { data: r }, { data: t }] = await Promise.all([q, supabase.rpc('resumo_automacoes'), supabase.from('octa_templates').select('id, nome')]);
-    setItens((data as Automacao[]) ?? []);
+    const lista = (data as Automacao[]) ?? [];
+    setItens(lista);
+    setFixas(new Set(lista.filter((a) => arquivadas || a.ativa).map((a) => a.id!)));
     setResumo(Object.fromEntries(((r as Resumo[]) ?? []).map((x) => [x.automacao_id, x])));
     setTemplates((t as Template[]) ?? []);
     setLoading(false);
   }, [arquivadas]);
   useEffect(() => { load(); }, [load]);
+  useEffect(() => setPagina(0), [arquivadas]);
+
+  const visiveis = itens.filter((a) => fixas.has(a.id!));
+  const paginas = Math.max(1, Math.ceil(visiveis.length / POR_PAGINA));
+  const paginaAtual = Math.min(pagina, paginas - 1);
+  const daPagina = visiveis.slice(paginaAtual * POR_PAGINA, (paginaAtual + 1) * POR_PAGINA);
 
   async function toggle(a: Automacao, ativa: boolean) {
     if (ativa && !a.automacao_acoes?.length) return alert('Adicione pelo menos uma ação antes de ativar.');
@@ -158,18 +238,49 @@ export default function Automations() {
       <PageHeader title="Automações" subtitle="Réguas de WhatsApp em cima dos dados do metrics, enviadas pelo Octadesk."
         actions={podeEditar && <Link to="/app/automacoes/nova" className="btn-primary"><Plus className="h-4 w-4" />Criar nova automação</Link>} />
 
-      {loading ? <Spinner /> : itens.length === 0 ? (
-        <EmptyState icon={<Workflow />} title={arquivadas ? 'Nenhuma automação arquivada' : 'Crie sua primeira automação'}
-          text="Escolha um gatilho do metrics (ex.: orçamento sem compra) e o que deve acontecer (ex.: enviar um template pelo Octadesk)."
-          action={!arquivadas && podeEditar && <Link to="/app/automacoes/nova" className="btn-primary"><Plus className="h-4 w-4" />Criar nova automação</Link>} />
+      {loading ? <Spinner /> : visiveis.length === 0 ? (
+        itens.length === 0 ? (
+          <EmptyState icon={<Workflow />} title={arquivadas ? 'Nenhuma automação arquivada' : 'Crie sua primeira automação'}
+            text="Escolha um gatilho do metrics (ex.: orçamento sem compra) e o que deve acontecer (ex.: enviar um template pelo Octadesk)."
+            action={!arquivadas && podeEditar && <Link to="/app/automacoes/nova" className="btn-primary"><Plus className="h-4 w-4" />Criar nova automação</Link>} />
+        ) : (
+          <EmptyState icon={<Workflow />} title="Nenhuma automação ativa"
+            text={`${itens.length} ${itens.length === 1 ? 'automação está pausada' : 'automações estão pausadas'}. Abra "Ver todas" para ligar ou editar.`} />
+        )
       ) : (
         <div className="space-y-4">
-          {itens.map((a) => (
+          {daPagina.map((a) => (
             <Card key={a.id} a={a} resumo={resumo[a.id!]} templates={templates} arquivada={arquivadas} podeEditar={podeEditar}
               onToggle={(v) => toggle(a, v)} onDuplicar={() => duplicar(a)} onArquivar={() => arquivar(a, !arquivadas)} />
           ))}
         </div>
       )}
+
+      {!loading && (visiveis.length > POR_PAGINA || (!arquivadas && itens.length > 0)) && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          {visiveis.length > POR_PAGINA ? (
+            <nav className="flex items-center gap-2" aria-label="Paginação">
+              <button className="btn-ghost px-2.5 py-2" disabled={paginaAtual === 0} onClick={() => setPagina(paginaAtual - 1)} aria-label="Página anterior">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="text-sm text-muted tabular-nums">Página {paginaAtual + 1} de {paginas}</span>
+              <button className="btn-ghost px-2.5 py-2" disabled={paginaAtual >= paginas - 1} onClick={() => setPagina(paginaAtual + 1)} aria-label="Próxima página">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </nav>
+          ) : <span />}
+          {!arquivadas && (
+            <button className="btn-ghost" onClick={() => setTodas(true)}><List className="h-4 w-4" />Ver todas ({itens.length})</button>
+          )}
+        </div>
+      )}
+
+      <Modal open={todas} title={`Todas as automações (${itens.length})`} onClose={() => setTodas(false)}>
+        <p className="mb-3 text-xs text-muted">Passe o mouse em “Gatilho” ou “Ações” para ver os detalhes. Clique numa automação para editá-la.</p>
+        <ul className="space-y-2">
+          {itens.map((a) => <LinhaCompacta key={a.id} a={a} resumo={resumo[a.id!]} onAbrir={() => nav(`/app/automacoes/${a.id}`)} />)}
+        </ul>
+      </Modal>
 
       {!loading && (
         <>
