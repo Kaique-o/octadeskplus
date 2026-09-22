@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
-import { Archive, ArchiveRestore, ChevronLeft, ChevronRight, Copy, List, MoreVertical, Pencil, Plus, Workflow } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronLeft, ChevronRight, Copy, Download, List, MoreVertical, Pencil, Plus, Workflow } from 'lucide-react';
 import { EmptyState, Modal, PageHeader, Spinner, Toggle } from '../components/ui';
 import { ACOES, FONTES, GATILHOS, POLITICAS_CONVERSA, UNIDADES } from '../lib/constants';
 import { errorMessage, supabase } from '../lib/supabase';
 import { useSession } from '../lib/session';
+import { baixarCsv } from '../lib/csv';
 import type { Acao, Automacao, Template } from '../lib/types';
 
 interface Resumo {
@@ -219,6 +220,22 @@ export default function Automations() {
   const paginaAtual = Math.min(pagina, paginas - 1);
   const daPagina = visiveis.slice(paginaAtual * POR_PAGINA, (paginaAtual + 1) * POR_PAGINA);
 
+  function exportar() {
+    const ordenadas = [...itens].sort((x, y) => Number(y.ativa) - Number(x.ativa));
+    baixarCsv('automacoes', ['Nome', 'Status', 'Origem', 'Gatilho', 'Parâmetros', 'Condições', 'Envio', 'Horário comercial', 'Ações',
+      'Executadas', 'Erros', 'Sem envio', 'Respostas (%)', 'Compras', 'Última execução'],
+    ordenadas.map((a) => {
+      const r = resumo[a.id!];
+      const acoes = [...(a.automacao_acoes ?? [])].sort((x, y) => (x.posicao ?? 0) - (y.posicao ?? 0));
+      return [a.nome, a.ativa ? 'Ativa' : 'Pausada', FONTES.find((f) => f.value === a.fonte)?.label ?? a.fonte, GATILHOS[a.gatilho].label,
+        resumoParametros(a) === '—' ? '' : resumoParametros(a), a.condicoes?.ativas ? `Sim (${a.condicoes.lista?.length ?? 0})` : 'Não', quando(a),
+        a.respeitar_horario ? 'Adiar para horário útil' : 'Sem restrição',
+        acoes.map((x, i) => `${i + 1}. ${ACOES[x.tipo].label} (${esperaDaAcao(x, i).toLowerCase()})`).join(' | '),
+        r?.executadas ?? 0, r?.erros ?? 0, r?.sem_envio ?? 0, r?.envios ? Math.round((r.respostas / r.envios) * 100) : '', r?.compras ?? 0,
+        r?.ultima_execucao ? new Date(r.ultima_execucao).toLocaleString('pt-BR') : ''];
+    }));
+  }
+
   async function toggle(a: Automacao, ativa: boolean) {
     if (ativa && !a.automacao_acoes?.length) return alert('Adicione pelo menos uma ação antes de ativar.');
     setItens((xs) => xs.map((x) => (x.id === a.id ? { ...x, ativa } : x)));
@@ -273,7 +290,8 @@ export default function Automations() {
         </div>
       )}
 
-      <Modal open={todas} title={`Todas as automações (${itens.length})`} onClose={() => setTodas(false)}>
+      <Modal open={todas} title={`Todas as automações (${itens.length})`} onClose={() => setTodas(false)}
+        footer={<button className="btn-ghost" onClick={exportar}><Download className="h-4 w-4" />Exportar CSV</button>}>
         <p className="mb-3 text-xs text-muted">Passe o mouse em “Gatilho” ou “Ações” para ver os detalhes. Clique numa automação para editá-la.</p>
         <ul className="space-y-2">
           {[...itens].sort((x, y) => Number(y.ativa) - Number(x.ativa)).map((a) => <LinhaCompacta key={a.id} a={a} resumo={resumo[a.id!]} onAbrir={() => nav(`/app/automacoes/${a.id}`)} />)}

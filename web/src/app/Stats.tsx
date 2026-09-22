@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, List } from 'lucide-react';
-import { Modal, Spinner, StatusChip } from '../components/ui';
+import { ChevronLeft, ChevronRight, Download, List } from 'lucide-react';
+import { Modal, rotuloStatus, Spinner, StatusChip } from '../components/ui';
+import { baixarCsv } from '../lib/csv';
 import { ACOES, MOTIVOS } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import type { TipoAcao } from '../lib/types';
@@ -17,6 +18,8 @@ interface Linha {
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
 const POR_PAGINA = 10;
 
+const detalhe = (l: Linha) => (l.codigo_erro ? MOTIVOS[l.codigo_erro] ?? `${l.codigo_erro}${l.erro ? ` — ${l.erro}` : ''}` : l.erro ?? '—');
+
 function TabelaExecucoes({ linhas }: { linhas: Linha[] }) {
   return (
     <div className="overflow-x-auto">
@@ -32,7 +35,7 @@ function TabelaExecucoes({ linhas }: { linhas: Linha[] }) {
               <td className="px-4 py-2.5"><StatusChip status={l.status} /></td>
               <td className="whitespace-nowrap px-4 py-2.5 tabular-nums text-muted">{new Date(l.concluido_em ?? l.agendado_para).toLocaleString('pt-BR')}</td>
               <td className="max-w-72 truncate px-4 py-2.5 text-muted" title={l.erro ?? ''}>
-                {l.codigo_erro ? MOTIVOS[l.codigo_erro] ?? `${l.codigo_erro}${l.erro ? ` — ${l.erro}` : ''}` : l.erro ?? '—'}
+                {detalhe(l)}
               </td>
             </tr>
           ))}
@@ -160,7 +163,12 @@ export default function Stats() {
             </div>
           </>
         )}
-        <Modal open={todas} largo title={`Últimas execuções (${linhas.length})`} onClose={() => setTodas(false)}>
+        <Modal open={todas} largo title={`Últimas execuções (${linhas.length})`} onClose={() => setTodas(false)}
+          footer={<button className="btn-ghost" onClick={() => baixarCsv('execucoes', ['Automação', 'Ação', 'Status', 'Quando', 'Detalhe'],
+            linhas.map((l) => [l.automacoes?.nome, l.automacao_acoes ? ACOES[l.automacao_acoes.tipo]?.label : '', rotuloStatus(l.status),
+              new Date(l.concluido_em ?? l.agendado_para).toLocaleString('pt-BR'), detalhe(l) === '—' ? '' : detalhe(l)]))}>
+            <Download className="h-4 w-4" />Exportar CSV
+          </button>}>
           <div className="-mx-5 -my-4"><TabelaExecucoes linhas={linhas} /></div>
         </Modal>
       </section>

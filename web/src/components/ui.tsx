@@ -73,23 +73,27 @@ export function Modal({ open, title, onClose, children, footer, largo }: { open:
   );
 }
 
+const STATUS: Record<string, [string, string]> = {
+  connected: ['Conectado', 'bg-green-100 text-success'],
+  checking: ['Validando…', 'bg-brand-soft text-blue-800'],
+  error: ['Erro', 'bg-red-100 text-danger'],
+  missing: ['Não configurado', 'bg-fog text-muted'],
+  success: ['Sucesso', 'bg-green-100 text-success'],
+  skipped: ['Ignorado', 'bg-gray-100 text-muted'],
+  pending: ['Agendado', 'bg-brand-soft text-blue-800'],
+  running: ['Executando', 'bg-blue-100 text-blue-700'],
+  sucesso: ['Sucesso', 'bg-green-100 text-success'],
+  ignorado: ['Sem envio', 'bg-gray-100 text-muted'],
+  erro: ['Erro', 'bg-red-100 text-danger'],
+  pendente: ['Agendado', 'bg-brand-soft text-blue-800'],
+  executando: ['Executando', 'bg-blue-100 text-blue-700'],
+};
+
+/** Texto do status como aparece no chip (também usado na exportação). */
+export const rotuloStatus = (status: string) => STATUS[status]?.[0] ?? status;
+
 export function StatusChip({ status }: { status: string }) {
-  const map: Record<string, [string, string]> = {
-    connected: ['Conectado', 'bg-green-100 text-success'],
-    checking: ['Validando…', 'bg-brand-soft text-blue-800'],
-    error: ['Erro', 'bg-red-100 text-danger'],
-    missing: ['Não configurado', 'bg-fog text-muted'],
-    success: ['Sucesso', 'bg-green-100 text-success'],
-    skipped: ['Ignorado', 'bg-gray-100 text-muted'],
-    pending: ['Agendado', 'bg-brand-soft text-blue-800'],
-    running: ['Executando', 'bg-blue-100 text-blue-700'],
-    sucesso: ['Sucesso', 'bg-green-100 text-success'],
-    ignorado: ['Sem envio', 'bg-gray-100 text-muted'],
-    erro: ['Erro', 'bg-red-100 text-danger'],
-    pendente: ['Agendado', 'bg-brand-soft text-blue-800'],
-    executando: ['Executando', 'bg-blue-100 text-blue-700'],
-  };
-  const [label, cls] = map[status] ?? [status, 'bg-fog text-muted'];
+  const [label, cls] = STATUS[status] ?? [status, 'bg-fog text-muted'];
   return <span className={`chip ${cls}`}>{label}</span>;
 }
 
