@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
-import { Archive, ArchiveRestore, ChevronLeft, ChevronRight, Copy, Download, List, MoreVertical, Pencil, Plus, Workflow } from 'lucide-react';
+import { Archive, ArchiveRestore, ChevronDown, ChevronLeft, ChevronRight, Copy, Download, List, MoreVertical, Pencil, Plus, Workflow } from 'lucide-react';
 import { EmptyState, Modal, PageHeader, Spinner, Toggle } from '../components/ui';
 import { ACOES, FONTES, GATILHOS, POLITICAS_CONVERSA, UNIDADES } from '../lib/constants';
 import { errorMessage, supabase } from '../lib/supabase';
@@ -33,6 +33,7 @@ function Card({ a, resumo, templates, arquivada, podeEditar, onToggle, onDuplica
   onToggle: (v: boolean) => void; onDuplicar: () => void; onArquivar: () => void; onAbrir: () => void;
 }) {
   const [menu, setMenu] = useState(false);
+  const [detalhes, setDetalhes] = useState(false);
   const acoes = [...(a.automacao_acoes ?? [])].sort((x, y) => (x.posicao ?? 0) - (y.posicao ?? 0));
   const taxa = resumo?.envios ? Math.round((resumo.respostas / resumo.envios) * 100) : null;
 
@@ -68,6 +69,13 @@ function Card({ a, resumo, templates, arquivada, podeEditar, onToggle, onDuplica
             <span title="Clientes que compraram até 7 dias depois do envio"><b className="block font-title text-lg tabular-nums text-success">{resumo.compras}</b>compras</span>
           </div>
         )}
+        <button
+          className="rounded-lg p-2 text-muted transition-colors hover:bg-fog hover:text-ink" onClick={() => setDetalhes(!detalhes)}
+          aria-expanded={detalhes} aria-controls={`detalhes-${a.id}`} aria-label={detalhes ? 'Esconder gatilho e ações' : 'Mostrar gatilho e ações'}
+          title={detalhes ? 'Esconder gatilho e ações' : 'Mostrar gatilho e ações'}
+        >
+          <ChevronDown className={`h-5 w-5 transition-transform ${detalhes ? 'rotate-180' : ''}`} />
+        </button>
         {podeEditar && (
           <div className="relative">
             <button className="btn-ghost px-2 py-2" onClick={() => setMenu(!menu)} aria-label="Ações"><MoreVertical className="h-4 w-4" /></button>
@@ -87,32 +95,36 @@ function Card({ a, resumo, templates, arquivada, podeEditar, onToggle, onDuplica
         )}
       </div>
 
-      <div className="mt-4 rounded-lg bg-fog p-3">
-        <p className="text-[11px] font-semibold tracking-wide text-muted">GATILHO</p>
-        <dl className="mt-1.5 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
-          {gatilho.map(([k, v]) => <div key={k} className="flex gap-1.5"><dt className="text-muted">{k}:</dt><dd className="font-medium">{v}</dd></div>)}
-        </dl>
-      </div>
+      {detalhes && (
+        <div id={`detalhes-${a.id}`}>
+          <div className="mt-4 rounded-lg bg-fog p-3">
+            <p className="text-[11px] font-semibold tracking-wide text-muted">GATILHO</p>
+            <dl className="mt-1.5 grid gap-x-6 gap-y-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
+              {gatilho.map(([k, v]) => <div key={k} className="flex gap-1.5"><dt className="text-muted">{k}:</dt><dd className="font-medium">{v}</dd></div>)}
+            </dl>
+          </div>
 
-      <p className="mt-4 text-[11px] font-semibold tracking-wide text-muted">AÇÕES ({acoes.length} {acoes.length === 1 ? 'AÇÃO' : 'AÇÕES'})</p>
-      {acoes.length === 0 ? <p className="mt-1 text-sm text-muted">Nenhuma ação configurada.</p> : (
-        <div className="mt-1.5 overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="text-left text-[11px] tracking-wide text-muted">
-              <tr>{['OCORRE', 'AÇÃO', 'TELEFONE', 'TEMPLATE', 'CONVERSA ABERTA'].map((h) => <th key={h} className="py-1.5 pr-4 font-medium">{h}</th>)}</tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {acoes.map((x, i) => (
-                <tr key={x.id ?? i}>
-                  <td className="whitespace-nowrap py-2 pr-4">{esperaDaAcao(x, i)}</td>
-                  <td className="py-2 pr-4">{i + 1}. {ACOES[x.tipo].label}</td>
-                  <td className="whitespace-nowrap py-2 pr-4 text-muted">{x.tipo === 'enviar_template' ? x.config?.numero ?? 'padrão' : '—'}</td>
-                  <td className="py-2 pr-4 text-muted">{x.config?.template_id ? templates.find((t) => t.id === x.config.template_id)?.nome ?? x.config.template_id : '—'}</td>
-                  <td className="py-2 pr-4 text-muted">{x.tipo === 'enviar_template' ? POLITICAS_CONVERSA.find((p) => p.value === (x.config?.conversa_aberta ?? 'nao_fazer_nada'))?.short : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <p className="mt-4 text-[11px] font-semibold tracking-wide text-muted">AÇÕES ({acoes.length} {acoes.length === 1 ? 'AÇÃO' : 'AÇÕES'})</p>
+          {acoes.length === 0 ? <p className="mt-1 text-sm text-muted">Nenhuma ação configurada.</p> : (
+            <div className="mt-1.5 overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="text-left text-[11px] tracking-wide text-muted">
+                  <tr>{['OCORRE', 'AÇÃO', 'TELEFONE', 'TEMPLATE', 'CONVERSA ABERTA'].map((h) => <th key={h} className="py-1.5 pr-4 font-medium">{h}</th>)}</tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {acoes.map((x, i) => (
+                    <tr key={x.id ?? i}>
+                      <td className="whitespace-nowrap py-2 pr-4">{esperaDaAcao(x, i)}</td>
+                      <td className="py-2 pr-4">{i + 1}. {ACOES[x.tipo].label}</td>
+                      <td className="whitespace-nowrap py-2 pr-4 text-muted">{x.tipo === 'enviar_template' ? x.config?.numero ?? 'padrão' : '—'}</td>
+                      <td className="py-2 pr-4 text-muted">{x.config?.template_id ? templates.find((t) => t.id === x.config.template_id)?.nome ?? x.config.template_id : '—'}</td>
+                      <td className="py-2 pr-4 text-muted">{x.tipo === 'enviar_template' ? POLITICAS_CONVERSA.find((p) => p.value === (x.config?.conversa_aberta ?? 'nao_fazer_nada'))?.short : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -185,7 +197,7 @@ function LinhaCompacta({ a, resumo, onAbrir }: { a: Automacao; resumo?: Resumo; 
   );
 }
 
-const POR_PAGINA = 3;
+const POR_PAGINA = 5;
 
 export default function Automations() {
   const nav = useNavigate();
