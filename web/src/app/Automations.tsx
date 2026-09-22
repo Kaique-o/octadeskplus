@@ -51,7 +51,7 @@ function Card({ a, resumo, templates, arquivada, podeEditar, onToggle, onDuplica
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{a.nome}</p>
           <p className="text-xs text-muted">
-            <span className={`chip mr-2 ${a.ativa && !arquivada ? 'bg-green-100 text-success' : 'bg-fog text-muted'}`}>{arquivada ? 'Arquivada' : a.ativa ? 'Ativa' : 'Pausada'}</span>
+            {arquivada && <span className="chip mr-2 bg-fog text-muted">Arquivada</span>}
             {resumo?.ultima_execucao ? `Últ.: ${new Date(resumo.ultima_execucao).toLocaleString('pt-BR')}` : 'Nunca executada'}
           </p>
         </div>
@@ -150,10 +150,7 @@ function LinhaCompacta({ a, resumo, onAbrir }: { a: Automacao; resumo?: Resumo; 
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAbrir(); } }}
         className="card cursor-pointer px-4 py-3 transition hover:border-brand hover:shadow-sm focus-visible:border-brand focus-visible:outline-none"
       >
-        <div className="flex items-center gap-2">
-          <p className="min-w-0 flex-1 truncate font-semibold">{a.nome}</p>
-          <span className={`chip ${a.ativa ? 'bg-green-100 text-success' : 'bg-fog text-muted'}`}>{a.ativa ? 'Ativa' : 'Pausada'}</span>
-        </div>
+        <p className="truncate font-semibold">{a.nome}</p>
         <p className="mt-1 text-xs text-muted tabular-nums">
           {resumo
             ? <>{resumo.executadas} executadas · <span className="text-danger">{resumo.erros} erros</span> · {taxa == null ? '—' : `${taxa}%`} respostas · <span className="text-success">{resumo.compras} compras</span></>
