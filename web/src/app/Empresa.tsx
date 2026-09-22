@@ -53,7 +53,7 @@ export default function Empresa() {
     <div className="space-y-6">
       <SettingsTabs />
       {loading ? <Spinner /> : (
-        <section className="card max-w-2xl p-5">
+        <section className="card p-5">
           <div className="flex items-start gap-3">
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-soft text-brand"><Building2 className="h-5 w-5" /></div>
             <div>
