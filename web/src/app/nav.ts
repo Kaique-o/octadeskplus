@@ -28,7 +28,7 @@ export const AJUDA: Record<string, { titulo: string; texto: string }> = {
     texto: 'Cada automação é um gatilho seguido de ações em sequência. Gatilhos do metrics são conferidos a cada 5 minutos e só '
       + 'olham o que acontecer depois de a automação ser ligada — ligar uma régua nunca dispara sobre o histórico. '
       + 'O interruptor pausa sem perder a configuração; o menu permite editar, duplicar e arquivar. '
-      + 'A lista mostra só as ativas, 3 por página; "Ver todas" abre as pausadas também, em resumo — passe o mouse em '
+      + 'A lista mostra 3 por página, ativas primeiro e pausadas depois; "Ver todas" abre todas em resumo — passe o mouse em '
       + '"Gatilho" ou "Ações" para ver os detalhes e clique na automação para editá-la.',
   },
   '/app/automacoes/nova': {

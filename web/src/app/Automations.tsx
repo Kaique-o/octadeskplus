@@ -190,8 +190,8 @@ export default function Automations() {
   const nav = useNavigate();
   const { podeEditar } = useSession();
   const [itens, setItens] = useState<Automacao[]>([]);
-  // ativas no momento da carga: pausar um card não o tira da página na hora
-  const [fixas, setFixas] = useState<Set<string>>(new Set());
+  // ordem da lista: ativas primeiro, depois pausadas. Fixada na carga, para ligar/pausar não fazer o card pular de página.
+  const [ordem, setOrdem] = useState<string[]>([]);
   const [resumo, setResumo] = useState<Record<string, Resumo>>({});
   const [templates, setTemplates] = useState<Template[]>([]);
   const [arquivadas, setArquivadas] = useState(false);
@@ -206,7 +206,7 @@ export default function Automations() {
     const [{ data }, { data: r }, { data: t }] = await Promise.all([q, supabase.rpc('resumo_automacoes'), supabase.from('octa_templates').select('id, nome')]);
     const lista = (data as Automacao[]) ?? [];
     setItens(lista);
-    setFixas(new Set(lista.filter((a) => arquivadas || a.ativa).map((a) => a.id!)));
+    setOrdem([...lista].sort((x, y) => Number(y.ativa) - Number(x.ativa)).map((a) => a.id!));
     setResumo(Object.fromEntries(((r as Resumo[]) ?? []).map((x) => [x.automacao_id, x])));
     setTemplates((t as Template[]) ?? []);
     setLoading(false);
@@ -214,7 +214,7 @@ export default function Automations() {
   useEffect(() => { load(); }, [load]);
   useEffect(() => setPagina(0), [arquivadas]);
 
-  const visiveis = itens.filter((a) => fixas.has(a.id!));
+  const visiveis = ordem.map((id) => itens.find((a) => a.id === id)).filter((a): a is Automacao => !!a);
   const paginas = Math.max(1, Math.ceil(visiveis.length / POR_PAGINA));
   const paginaAtual = Math.min(pagina, paginas - 1);
   const daPagina = visiveis.slice(paginaAtual * POR_PAGINA, (paginaAtual + 1) * POR_PAGINA);
@@ -243,14 +243,9 @@ export default function Automations() {
         actions={podeEditar && <Link to="/app/automacoes/nova" className="btn-primary"><Plus className="h-4 w-4" />Criar nova automação</Link>} />
 
       {loading ? <Spinner /> : visiveis.length === 0 ? (
-        itens.length === 0 ? (
-          <EmptyState icon={<Workflow />} title={arquivadas ? 'Nenhuma automação arquivada' : 'Crie sua primeira automação'}
-            text="Escolha um gatilho do metrics (ex.: orçamento sem compra) e o que deve acontecer (ex.: enviar um template pelo Octadesk)."
-            action={!arquivadas && podeEditar && <Link to="/app/automacoes/nova" className="btn-primary"><Plus className="h-4 w-4" />Criar nova automação</Link>} />
-        ) : (
-          <EmptyState icon={<Workflow />} title="Nenhuma automação ativa"
-            text={`${itens.length} ${itens.length === 1 ? 'automação está pausada' : 'automações estão pausadas'}. Abra "Ver todas" para ligar ou editar.`} />
-        )
+        <EmptyState icon={<Workflow />} title={arquivadas ? 'Nenhuma automação arquivada' : 'Crie sua primeira automação'}
+          text="Escolha um gatilho do metrics (ex.: orçamento sem compra) e o que deve acontecer (ex.: enviar um template pelo Octadesk)."
+          action={!arquivadas && podeEditar && <Link to="/app/automacoes/nova" className="btn-primary"><Plus className="h-4 w-4" />Criar nova automação</Link>} />
       ) : (
         <div className="space-y-4">
           {daPagina.map((a) => (
