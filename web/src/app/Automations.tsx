@@ -51,7 +51,6 @@ function Card({ a, resumo, templates, arquivada, podeEditar, onToggle, onDuplica
         <div className="min-w-0 flex-1">
           <p className="truncate font-semibold">{a.nome}</p>
           <p className="text-xs text-muted">
-            {arquivada && <span className="chip mr-2 bg-fog text-muted">Arquivada</span>}
             {resumo?.ultima_execucao ? `Últ.: ${new Date(resumo.ultima_execucao).toLocaleString('pt-BR')}` : 'Nunca executada'}
           </p>
         </div>
@@ -150,7 +149,11 @@ function LinhaCompacta({ a, resumo, onAbrir }: { a: Automacao; resumo?: Resumo; 
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onAbrir(); } }}
         className="card cursor-pointer px-4 py-3 transition hover:border-brand hover:shadow-sm focus-visible:border-brand focus-visible:outline-none"
       >
-        <p className="truncate font-semibold">{a.nome}</p>
+        <div className="flex items-center gap-2">
+          <p className="min-w-0 flex-1 truncate font-semibold">{a.nome}</p>
+          <span role="img" aria-label={a.ativa ? 'Ativa' : 'Pausada'} title={a.ativa ? 'Ativa' : 'Pausada'}
+            className={`h-2.5 w-2.5 shrink-0 rounded-full ${a.ativa ? 'bg-success' : 'bg-gray-300'}`} />
+        </div>
         <p className="mt-1 text-xs text-muted tabular-nums">
           {resumo
             ? <>{resumo.executadas} executadas · <span className="text-danger">{resumo.erros} erros</span> · {taxa == null ? '—' : `${taxa}%`} respostas · <span className="text-success">{resumo.compras} compras</span></>
@@ -274,7 +277,7 @@ export default function Automations() {
       <Modal open={todas} title={`Todas as automações (${itens.length})`} onClose={() => setTodas(false)}>
         <p className="mb-3 text-xs text-muted">Passe o mouse em “Gatilho” ou “Ações” para ver os detalhes. Clique numa automação para editá-la.</p>
         <ul className="space-y-2">
-          {itens.map((a) => <LinhaCompacta key={a.id} a={a} resumo={resumo[a.id!]} onAbrir={() => nav(`/app/automacoes/${a.id}`)} />)}
+          {[...itens].sort((x, y) => Number(y.ativa) - Number(x.ativa)).map((a) => <LinhaCompacta key={a.id} a={a} resumo={resumo[a.id!]} onAbrir={() => nav(`/app/automacoes/${a.id}`)} />)}
         </ul>
       </Modal>
 
