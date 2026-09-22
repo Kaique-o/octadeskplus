@@ -253,21 +253,20 @@ export default function Automations() {
         </div>
       )}
 
-      {!loading && (visiveis.length > POR_PAGINA || (!arquivadas && itens.length > 0)) && (
+      {!loading && visiveis.length > 0 && (
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-          {visiveis.length > POR_PAGINA ? (
-            <nav className="flex items-center gap-2" aria-label="Paginação">
-              <button className="btn-ghost px-2.5 py-2" disabled={paginaAtual === 0} onClick={() => setPagina(paginaAtual - 1)} aria-label="Página anterior">
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <span className="text-sm text-muted tabular-nums">Página {paginaAtual + 1} de {paginas}</span>
-              <button className="btn-ghost px-2.5 py-2" disabled={paginaAtual >= paginas - 1} onClick={() => setPagina(paginaAtual + 1)} aria-label="Próxima página">
-                <ChevronRight className="h-4 w-4" />
-              </button>
-            </nav>
-          ) : <span />}
+          <nav className="flex items-center gap-2" aria-label="Paginação">
+            <button className="btn-ghost px-2.5 py-2" disabled={paginaAtual === 0} onClick={() => setPagina(paginaAtual - 1)} aria-label="Página anterior">
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="text-sm text-muted tabular-nums">Página {paginaAtual + 1} de {paginas}</span>
+            <button className="btn-ghost px-2.5 py-2" disabled={paginaAtual >= paginas - 1} onClick={() => setPagina(paginaAtual + 1)} aria-label="Próxima página">
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </nav>
           {!arquivadas && (
-            <button className="btn-ghost" onClick={() => setTodas(true)}><List className="h-4 w-4" />Ver todas ({itens.length})</button>
+            <button className="inline-flex items-center gap-2 rounded px-1 text-sm font-semibold text-brand transition-colors hover:text-brand-hover hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+              onClick={() => setTodas(true)}><List className="h-4 w-4" />Ver todas ({itens.length})</button>
           )}
         </div>
       )}
