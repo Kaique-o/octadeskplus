@@ -38,7 +38,7 @@ export default function Profile() {
       <PageHeader title="Meu perfil" subtitle="Seu nome e sua senha de acesso ao painel." />
       {aviso && <Alert kind={aviso.kind}>{aviso.text}</Alert>}
 
-      <section className="card max-w-xl p-5">
+      <section className="card p-5">
         <h2 className="font-semibold">Meus dados</h2>
         {atual && <div className="mt-4"><PlacaCargo tipo={atual.perfil_tipo} nome={atual.perfil} /></div>}
         <div className="mt-4 flex items-center gap-4">
