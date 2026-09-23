@@ -93,15 +93,13 @@ const flows = {
 
   'octaplus-manutencao': flow('Octadesk Plus | Validação, catálogos e token (a cada minuto)', [
     schedule('A cada minuto', [0, 0], { field: 'minutes', minutesInterval: 1 }),
-    pg('Ler integração', [240, 0], 'select octaplus.credenciais_octadesk() as c'),
+    // uma linha por empresa ativa com integração
+    pg('Ler integrações', [240, 0], 'select octaplus.credenciais_octadesk() as c'),
     codeNode('Validar, sincronizar e renovar token', [480, 0], code('manutencao.js')),
-    pg('Gravar catálogos', [720, 0], 'select octaplus.gravar_catalogos(x) from (select $1::jsonb as x) s where x is not null',
-      '[$json.catalogo ? JSON.stringify($json.catalogo) : null]', { alwaysOutputData: true }),
-    pg('Gravar token', [960, 0], 'select octaplus.gravar_jwt(t, e) from (select $1::text as t, $2::timestamptz as e) s where t is not null',
-      "[$('Validar, sincronizar e renovar token').first().json.jwt?.token ?? null, $('Validar, sincronizar e renovar token').first().json.jwt?.expira_em ?? null]",
-      { alwaysOutputData: true }),
-  ], [['A cada minuto', 'Ler integração'], ['Ler integração', 'Validar, sincronizar e renovar token'],
-      ['Validar, sincronizar e renovar token', 'Gravar catálogos'], ['Gravar catálogos', 'Gravar token']]),
+    // um item por empresa com algo a gravar: {empresa_id, catalogo?, jwt?}
+    pg('Gravar catálogos e token', [720, 0], 'select octaplus.gravar_manutencao($1::jsonb)', '[JSON.stringify($json)]'),
+  ], [['A cada minuto', 'Ler integrações'], ['Ler integrações', 'Validar, sincronizar e renovar token'],
+      ['Validar, sincronizar e renovar token', 'Gravar catálogos e token']]),
 
   'octaplus-api-publica': flow('Octadesk Plus | API pública /v1/format', [
     webhook('Webhook', [0, 0], 'octaplus/v1/format'),

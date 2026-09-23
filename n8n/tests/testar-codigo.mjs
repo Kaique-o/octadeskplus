@@ -123,12 +123,14 @@ r = await executar([job({ tipo: 'transferir_fila', config: {} }, { fila: 'g', ev
 teste('transferir com API privada desligada: erro definitivo', r.saida[0].status === 'erro' && r.saida[0].codigo === 'api_privada_desligada');
 
 // ---------------------------------------------------------------- manutenção
+// uma linha de credenciais_octadesk() por empresa ativa
 async function manutencao(c, rotas) {
   const ctx = octadesk(rotas);
-  const saida = await new Async('$input', '$', codigo('manutencao.js')).call(ctx, { first: () => ({ json: { c } }) }, null);
+  const itens = (Array.isArray(c) ? c : [c]).map((x) => ({ json: { c: x } }));
+  const saida = await new Async('$input', '$', codigo('manutencao.js')).call(ctx, { all: () => itens, first: () => itens[0] }, null);
   return { saida: saida.map((s) => s.json), chamadas: ctx.chamadas };
 }
-const cred = { base_url: 'https://o1.api001.octadesk.services', api_key: 'k', agente_email: 'bot@x', status: 'conectado', catalogo_vencido: false,
+const cred = { empresa_id: 'emp-1', base_url: 'https://o1.api001.octadesk.services', api_key: 'k', agente_email: 'bot@x', status: 'conectado', catalogo_vencido: false,
   api_privada_ativa: false, jwt: 'tok', jwt_expira_em: new Date(Date.now() + 5 * 3600e3).toISOString() };
 
 let m = await manutencao(cred, {});
@@ -149,6 +151,16 @@ teste('manutenção: novo JWT com a validade do claim exp', m.saida[0].jwt.token
 
 m = await manutencao({ ...cred, status: 'validando' }, { 'GET /auth/check': erroHttp(401) });
 teste('manutenção: chave recusada vira erro na integração', m.saida[0].catalogo.ok === false && m.saida[0].catalogo.erro.includes('401'));
+
+// duas empresas: cada uma com a própria chave e o próprio resultado
+m = await manutencao([{ ...cred, empresa_id: 'emp-a', api_key: 'ka', status: 'validando' }, { ...cred, empresa_id: 'emp-b', api_key: 'kb', status: 'validando' }], {
+  'GET /auth/check': (o) => o.headers['X-API-KEY'] === 'ka',
+  'GET /chat/numbers': [], 'GET /chat/templates-message': [], 'GET /tickets/groups': [], 'GET /tickets/tags': [],
+});
+teste('manutenção: um item por empresa, com o empresa_id', m.saida.length === 2 && m.saida[0].empresa_id === 'emp-a' && m.saida[1].empresa_id === 'emp-b');
+teste('manutenção: resultado de cada empresa com a própria chave', m.saida[0].catalogo.ok === true && m.saida[1].catalogo.ok === false, JSON.stringify(m.saida));
+m = await manutencao([cred, { ...cred, empresa_id: 'emp-2', status: 'validando' }], { 'GET /auth/check': true, 'GET /chat/numbers': [], 'GET /chat/templates-message': [], 'GET /tickets/groups': [], 'GET /tickets/tags': [] });
+teste('manutenção: empresa sem nada a fazer não gera item', m.saida.length === 1 && m.saida[0].empresa_id === 'emp-2');
 
 console.log(falhas ? `\n${falhas} teste(s) falharam` : '\ntodos os testes passaram');
 process.exit(falhas ? 1 : 0);
