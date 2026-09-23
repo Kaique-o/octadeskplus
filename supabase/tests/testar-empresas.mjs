@@ -39,40 +39,118 @@ await motor();
 teste('owner: cria empresa já com configuração e integração', (await um(`select
   (select count(*) from octaplus.configuracao where empresa_id = $1)::int c,
   (select count(*) from octaplus.integracao_octadesk where empresa_id = $1)::int i`, [B])).c === 1);
+// criar e editar com os dados cadastrais e o fuso
 await como(dono);
-const uA = (await um(`select octaplus.criar_usuario($1, 'ana@x.com', 'Ana', 'senha-da-ana', 'editar') id`, [A])).id;
-const uB = (await um(`select octaplus.criar_usuario($1, 'bia@x.com', 'Bia', 'senha-da-bia', 'ver') id`, [B])).id;
+const C = (await um(`select octaplus.salvar_empresa($1) id`, [{ nome: 'Sky Norte', cnpj: '12.345.678/0001-90', telefone: '(92) 3333-4444', site: 'https://norte.com', fuso: 'America/Manaus' }])).id;
+await motor();
+let dadosC = await um(`select e.cnpj, e.telefone, e.site, c.fuso from octaplus.empresas e join octaplus.configuracao c on c.empresa_id = e.id where e.id = $1`, [C]);
+teste('owner: nova empresa já nasce com CNPJ, telefone, site e fuso', dadosC.cnpj === '12345678000190' && dadosC.telefone === '(92) 3333-4444'
+  && dadosC.site === 'https://norte.com' && dadosC.fuso === 'America/Manaus', JSON.stringify(dadosC));
+await como(dono);
+await q(`select octaplus.salvar_empresa($1)`, [{ id: C, fuso: 'America/Sao_Paulo' }]);
+await motor();
+dadosC = await um(`select e.cnpj, c.fuso from octaplus.empresas e join octaplus.configuracao c on c.empresa_id = e.id where e.id = $1`, [C]);
+teste('empresa: editar só o fuso mantém o resto', dadosC.fuso === 'America/Sao_Paulo' && dadosC.cnpj === '12345678000190', JSON.stringify(dadosC));
+await como(dono);
+teste('lista de empresas traz o fuso', (await q('select fuso from octaplus.listar_empresas() where id = $1', [C]))[0]?.fuso === 'America/Sao_Paulo');
+teste('empresa: fuso inválido é recusado', (await falha(`select octaplus.salvar_empresa($1)`, [{ id: C, fuso: 'Lua/Base' }])).includes('fuso_invalido'));
+await q(`select octaplus.apagar_empresa($1, 'Sky Norte')`, [C]);
+await motor();
+
+// perfis padrão de cada empresa
+const perfil = async (emp, nome) => (await um('select id from octaplus.perfis where empresa_id = $1 and nome = $2', [emp, nome])).id;
+const [ADMIN_A, EDITA_A, SOVE_A, EDITA_B, SOVE_B] = [await perfil(A, 'Administrador'), await perfil(A, 'Edita'), await perfil(A, 'Só vê'), await perfil(B, 'Edita'), await perfil(B, 'Só vê')];
+teste('perfis: toda empresa nasce com Administrador, Edita e Só vê', Boolean(ADMIN_A && EDITA_A && SOVE_A && EDITA_B && SOVE_B));
+
+await como(dono);
+const uA = (await um(`select octaplus.criar_usuario($1, 'ana@x.com', 'Ana', 'senha-da-ana', $2) id`, [A, EDITA_A])).id;
+const uB = (await um(`select octaplus.criar_usuario($1, 'bia@x.com', 'Bia', 'senha-da-bia', $2) id`, [B, SOVE_B])).id;
 await motor();
 const conta = await um(`select u.email_confirmed_at is not null conf, u.encrypted_password = crypt('senha-da-ana', u.encrypted_password) senha,
   (select count(*) from auth.identities i where i.user_id = u.id and i.provider = 'email')::int ident from auth.users u where id = $1`, [uA]);
 teste('owner: conta criada com e-mail confirmado, senha e identidade', conta.conf && conta.senha && conta.ident === 1, JSON.stringify(conta));
 await como(dono);
-teste('owner: mesmo e-mail reaproveita a conta', (await um(`select octaplus.criar_usuario($1, 'ANA@x.com', null, null, 'ver') id`, [B])).id === uA);
+teste('owner: mesmo e-mail reaproveita a conta', (await um(`select octaplus.criar_usuario($1, 'ANA@x.com', null, null, $2) id`, [B, SOVE_B])).id === uA);
 await q(`select octaplus.definir_membro_ativo($1, $2, false)`, [B, uA]);
-teste('owner: dono não vira membro', (await falha(`select octaplus.criar_usuario($1, 'OLIVERA@x.com', null, 'qualquer-1', 'ver')`, [A])).includes('usuario_e_dono'));
-teste('owner: senha curta recusada', (await falha(`select octaplus.criar_usuario($1, 'c@x.com', null, '123', 'ver')`, [A])).includes('senha_curta'));
-await q(`select octaplus.redefinir_senha($1, 'nova-senha-ana')`, [uA]);
+teste('owner: dono não vira membro', (await falha(`select octaplus.criar_usuario($1, 'OLIVERA@x.com', null, 'qualquer-1', $2)`, [A, SOVE_A])).includes('usuario_e_dono'));
+teste('owner: senha curta recusada', (await falha(`select octaplus.criar_usuario($1, 'c@x.com', null, '123', $2)`, [A, SOVE_A])).includes('senha_curta'));
+teste('perfil de outra empresa é recusado', (await falha(`select octaplus.criar_usuario($1, 'c@x.com', null, 'senha-longa-1', $2)`, [A, SOVE_B])).includes('perfil_invalido'));
+await q(`select octaplus.redefinir_senha($1, $2, 'nova-senha-ana')`, [A, uA]);
 await motor();
-teste('owner: redefine a senha', (await um(`select encrypted_password = crypt('nova-senha-ana', encrypted_password) ok from auth.users where id = $1`, [uA])).ok);
+teste('owner: redefine a senha (mesmo de quem está em outras empresas)', (await um(`select encrypted_password = crypt('nova-senha-ana', encrypted_password) ok from auth.users where id = $1`, [uA])).ok);
 await como(dono);
-teste('owner: não redefine a senha do dono', (await falha(`select octaplus.redefinir_senha($1, 'outra-senha-1')`, [dono])).includes('usuario_e_dono'));
+teste('owner: não redefine a senha do dono', (await falha(`select octaplus.redefinir_senha($1, $2, 'outra-senha-1')`, [A, dono])).includes('usuario_e_dono'));
 teste('owner: lista as duas empresas', (await q('select * from octaplus.listar_empresas()')).length === 2);
 teste('owner: lista os membros de uma empresa', (await q('select * from octaplus.listar_membros($1)', [B])).length === 2);
 
+// editar e apagar usuário (na empresa)
+await q(`select octaplus.editar_membro($1, $2, 'Bia Souza', $3)`, [B, uB, EDITA_B]);
+const bia = (await q('select * from octaplus.listar_membros($1)', [B])).find((m) => m.user_id === uB);
+teste('owner: edita nome e perfil do usuário', bia.nome === 'Bia Souza' && bia.perfil === 'Edita', JSON.stringify(bia));
+await q(`select octaplus.editar_membro($1, $2, 'Bia', $3)`, [B, uB, SOVE_B]);
+teste('owner: não edita o dono', (await falha(`select octaplus.editar_membro($1, $2, 'x', $3)`, [B, dono, SOVE_B])).includes('usuario_e_dono'));
+const extra = (await um(`select octaplus.criar_usuario($1, 'saiu@x.com', 'Saiu', 'senha-longa-1', $2) id`, [B, EDITA_B])).id;
+await q(`select octaplus.remover_membro($1, $2)`, [B, extra]);
+teste('owner: apagar tira o usuário da empresa', !(await q('select * from octaplus.listar_membros($1)', [B])).some((m) => m.user_id === extra));
+await como(extra, B);
+teste('usuário apagado perde o acesso', (await um(`select octaplus.pode('ver') p`)).p === false);
+await como(dono);
+
+// uA tem "Edita" em A: usuários só ver
 for (const [nome, sql, params] of [
+  ['editar usuário', `select octaplus.editar_membro($1, $2, 'x', $3)`, [B, uB, EDITA_B]],
+  ['apagar usuário', `select octaplus.remover_membro($1, $2)`, [B, uB]],
   ['criar empresa', `select octaplus.salvar_empresa('{"nome":"X"}')`],
-  ['criar usuário', `select octaplus.criar_usuario($1, 'z@x.com', null, 'senha-longa-1', 'ver')`, [A]],
+  ['criar usuário', `select octaplus.criar_usuario($1, 'z@x.com', null, 'senha-longa-1', $2)`, [A, SOVE_A]],
   ['inativar empresa', `select octaplus.definir_empresa_ativa($1, false)`, [A]],
   ['apagar empresa', `select octaplus.apagar_empresa($1, 'Skyline')`, [B]],
-  ['mudar nível', `select octaplus.definir_nivel($1, $2, 'editar')`, [B, uB]],
-  ['redefinir senha', `select octaplus.redefinir_senha($1, 'senha-longa-1')`, [uB]],
+  ['redefinir senha', `select octaplus.redefinir_senha($1, $2, 'senha-longa-1')`, [B, uB]],
+  ['criar perfil', `select octaplus.salvar_perfil($1, '{"nome":"X"}')`, [A]],
 ]) {
   await como(uA, A);
-  teste(`não-owner não pode ${nome}`, (await falha(sql, params)).includes('sem_permissao'));
+  teste(`sem "usuários: edita" não pode ${nome}`, (await falha(sql, params)).includes('sem_permissao'));
 }
 await como(uA, A);
-teste('não-owner: lista de membros vazia', (await q('select * from octaplus.listar_membros($1)', [A])).length === 0);
-teste('não-owner: só vê as empresas em que tem vínculo ativo', JSON.stringify((await q('select id from octaplus.listar_empresas()')).map((e) => e.id)) === JSON.stringify([A]));
+teste('perfil Edita: vê os usuários da empresa', (await q('select * from octaplus.listar_membros($1)', [A])).length === 1);
+teste('perfil Edita: não vê usuários de outra empresa', (await q('select * from octaplus.listar_membros($1)', [B])).length === 0);
+const minhas = await q('select id, perfil, permissoes from octaplus.listar_empresas()');
+teste('não-owner: só vê as empresas em que tem vínculo ativo, com o perfil', minhas.length === 1 && minhas[0].id === A && minhas[0].perfil === 'Edita'
+  && minhas[0].permissoes.usuarios === 'ver' && minhas[0].permissoes.automacoes === 'editar', JSON.stringify(minhas));
+
+// ---------------------------------------------------------------- gestão delegada e perfis
+await como(dono);
+const gerente = (await um(`select octaplus.criar_usuario($1, 'gerente@x.com', 'Gê', 'senha-gerente-1', $2) id`, [A, ADMIN_A])).id;
+await como(gerente, A);
+const novo = (await um(`select octaplus.criar_usuario($1, 'novo@x.com', 'Novo', 'senha-novo-12', $2) id`, [A, SOVE_A])).id;
+teste('delegado: quem tem "usuários: edita" cria usuário na própria empresa', Boolean(novo));
+teste('delegado: redefine senha de quem só está na empresa dele', (await falha(`select octaplus.redefinir_senha($1, $2, 'trocada-12345')`, [A, novo])) === '');
+teste('delegado: não redefine senha de quem também está em outra empresa', (await falha(`select octaplus.redefinir_senha($1, $2, 'trocada-12345')`, [A, uA])).includes('usuario_em_outras_empresas'));
+teste('delegado: não mexe em si mesmo', (await falha(`select octaplus.remover_membro($1, $2)`, [A, gerente])).includes('voce_mesmo'));
+teste('delegado: não cria usuário em outra empresa', (await falha(`select octaplus.criar_usuario($1, 'x9@x.com', null, 'senha-longa-1', $2)`, [B, SOVE_B])).includes('sem_permissao'));
+
+const EXPED = (await um(`select octaplus.salvar_perfil($1, $2) id`, [A, { nome: 'Expedição', permissoes: { nao_perturbe: 'editar', automacoes: 'ver' } }])).id;
+const exped = (await q('select * from octaplus.listar_perfis($1)', [A])).find((p) => p.id === EXPED);
+teste('perfil: áreas não marcadas ficam sem acesso', exped.permissoes.integracoes === 'nenhum' && exped.permissoes.api === 'nenhum' && exped.permissoes.nao_perturbe === 'editar');
+teste('perfil: permissão inválida é recusada', (await falha(`select octaplus.salvar_perfil($1, $2)`, [A, { nome: 'Y', permissoes: { api: 'tudo' } }])).includes('permissao_invalida'));
+teste('perfil: nome repetido é recusado', (await falha(`select octaplus.salvar_perfil($1, $2)`, [A, { nome: 'Expedição' }])).includes('perfil_repetido'));
+await q(`select octaplus.editar_membro($1, $2, 'Novo', $3)`, [A, novo, EXPED]);
+teste('perfil: em uso não pode ser apagado', (await falha(`select octaplus.apagar_perfil($1, $2)`, [A, EXPED])).includes('perfil_em_uso'));
+const livre = (await um(`select octaplus.salvar_perfil($1, '{"nome":"Temporário"}') id`, [A])).id;
+await q(`select octaplus.apagar_perfil($1, $2)`, [A, livre]);
+teste('perfil: sem usuários pode ser apagado', !(await q('select * from octaplus.listar_perfis($1)', [A])).some((p) => p.id === livre));
+
+await como(novo, A);
+const pode = async (area, acao) => (await um(`select octaplus.pode_aqui($1, $2) p`, [area, acao])).p;
+teste('área: Expedição vê automações mas não edita', (await pode('automacoes', 'ver')) && !(await pode('automacoes', 'editar')));
+teste('área: Expedição edita o não perturbe', await pode('nao_perturbe', 'editar'));
+teste('área: Expedição não vê integrações nem API', !(await pode('integracoes', 'ver')) && !(await pode('api', 'ver')));
+teste('área: sem API não lê chaves', (await q('select * from octaplus.chaves_api')).length === 0);
+teste('área: sem editar automações não salva', (await falha(`select octaplus.salvar_automacao($1)`, [{ nome: 'x', fonte: 'webhook', gatilho: 'webhook_externo' }])).includes('sem_permissao'));
+teste('área: sem editar integrações não salva a integração', (await falha(`select octaplus.salvar_integracao('{}')`)).includes('sem_permissao'));
+await q(`insert into octaplus.nao_perturbe (telefone) values ('+5511911110000')`);
+teste('área: grava no não perturbe', (await q('select * from octaplus.nao_perturbe')).length === 1);
+await q(`delete from octaplus.nao_perturbe`);
+await como(dono);
 
 // ---------------------------------------------------------------- isolamento
 const acao = [{ tipo: 'enviar_template', config: { template_id: 't1' } }];

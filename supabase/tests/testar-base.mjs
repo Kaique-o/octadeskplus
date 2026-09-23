@@ -59,7 +59,7 @@ teste('projeto próprio: perfil criado com nome', (await um(`select full_name n 
 
 const pode = async (uid) => {
   await db.exec(`reset role; select set_config('teste.uid', '${uid}', false); set role authenticated`);
-  return (await um(`select octaplus.pode_na((select id from octaplus.empresas limit 1), 'editar') p`)).p;
+  return (await um(`select octaplus.pode_area((select id from octaplus.empresas limit 1), 'automacoes', 'editar') p`)).p;
 };
 teste('projeto próprio: dono edita o octaplus', await pode(primeiro) === true);
 teste('projeto próprio: outro usuário não edita', await pode(segundo) === false);

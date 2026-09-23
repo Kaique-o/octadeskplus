@@ -63,7 +63,7 @@ teste('sem permissão: salvar_automacao recusa', erro.includes('sem_permissao'),
 teste('sem permissão: não vê a configuração', (await q('select * from octaplus.configuracao')).length === 0);
 
 await comoUsuario(dono);
-teste('dono do metrics: pode(editar)', (await um(`select octaplus.pode('editar') p`)).p === true);
+teste('dono: edita em todas as áreas', (await um(`select bool_and(octaplus.pode_aqui(a, 'editar')) p from unnest(octaplus.areas()) a`)).p === true);
 erro = '';
 try { await q('select * from octaplus.segredos'); } catch (e) { erro = e.message; }
 teste('segredos são invisíveis ao navegador', erro.includes('permission denied'), erro);
@@ -244,9 +244,10 @@ teste('empresa: dados cadastrais gravados (CNPJ só com dígitos)', emp.nome ===
 erro = '';
 try { await q(`select octaplus.salvar_empresa($1)`, [{ id: EMP, cnpj: '123' }]); } catch (e) { erro = e.message; }
 teste('empresa: CNPJ precisa ter 14 dígitos', erro.includes('check'), erro);
-const carla = (await um(`select octaplus.criar_usuario($1, 'Vendas@X.com', 'Carla', 'senha-forte-1', 'ver') id`, [EMP])).id;
+const soVe = (await um(`select id from octaplus.perfis where empresa_id = $1 and nome = 'Só vê'`, [EMP])).id;
+const carla = (await um(`select octaplus.criar_usuario($1, 'Vendas@X.com', 'Carla', 'senha-forte-1', $2) id`, [EMP, soVe])).id;
 const us = await q(`select * from octaplus.listar_usuarios()`);
-teste('usuários: lista os membros da empresa com o nível', us.length === 1 && us[0].id === carla && us[0].nivel === 'ver' && us[0].email === 'vendas@x.com', JSON.stringify(us));
+teste('usuários: lista os membros da empresa com o perfil', us.length === 1 && us[0].user_id === carla && us[0].perfil === 'Só vê' && us[0].email === 'vendas@x.com', JSON.stringify(us));
 await comoUsuario(semAcesso);
 teste('usuários: sem permissão não vê ninguém', (await q(`select * from octaplus.listar_usuarios()`)).length === 0);
 
