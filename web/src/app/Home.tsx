@@ -14,10 +14,12 @@ export default function Home() {
   const { profile } = useSession();
   const { atual } = useEmpresas();
   const { podeVer: veIntegracoes } = usePode('integracoes');
-  const [problemas, setProblemas] = useState<Problema[]>([]);
+  // null = ainda verificando: não mostra nenhum dos dois banners, para o azul não piscar antes do vermelho
+  const [problemas, setProblemas] = useState<Problema[] | null>(null);
   const primeiroNome = profile?.full_name?.trim().split(/\s+/)[0];
 
   useEffect(() => {
+    setProblemas(null);
     Promise.all([
       supabase.from('integracao_octadesk').select('*').maybeSingle(),
       supabase.from('integracoes_externas').select('tipo, status, ultimo_erro, atualizada_em'),
@@ -29,7 +31,9 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
-      {problemas.length === 0 ? (
+      {problemas === null ? (
+        <section className="h-44 animate-pulse rounded-2xl border border-line bg-fog md:h-48" aria-hidden />
+      ) : problemas.length === 0 ? (
         <section className="overflow-hidden rounded-2xl border border-line bg-gradient-to-br from-ink to-brand p-8 text-white shadow-sm md:p-10">
           <p className="text-sm font-medium text-white/70">{atual?.nome}</p>
           <h1 className="mt-1 font-title text-3xl font-bold tracking-tight md:text-4xl">{saudacao}</h1>
