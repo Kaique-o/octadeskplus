@@ -131,13 +131,15 @@ export default function IntegracoesExternas() {
               return (
                 <button key={c.tipo} type="button" disabled={bloqueada}
                   onClick={() => setJanela({ tipo: 'metrics', atual: itens?.find((i) => i.tipo === c.tipo) })}
-                  className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${bloqueada ? 'cursor-not-allowed border-line bg-fog opacity-60' : 'border-line bg-white hover:border-brand hover:shadow-sm'}`}>
+                  className={`group flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${bloqueada ? 'cursor-not-allowed border-line bg-fog opacity-60' : 'border-line bg-white hover:border-brand hover:shadow-sm'}`}>
                   <LogoIntegracao item={c} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
                       <strong className="font-semibold">{c.nome}</strong>
                       {bloqueada ? <span className="flex items-center gap-1 text-xs text-muted"><Lock className="h-3.5 w-3.5" />Indisponível</span>
-                        : conectada ? <span className="text-xs font-medium text-success">Conectado</span> : null}
+                        : conectada ? <span className="text-xs font-medium text-success">Conectado</span>
+                        // a linha inteira já é o botão: aqui é só o texto azul, sem fundo
+                        : <span className="text-sm font-semibold text-brand group-hover:underline">Conectar</span>}
                     </span>
                   </span>
                 </button>
