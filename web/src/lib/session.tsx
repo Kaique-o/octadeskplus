@@ -3,7 +3,7 @@ import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { DEMO, demoSession } from './demo';
 
-// Usuários e permissões são os do metrics (auth.users + public.profiles + user_roles).
+// Usuários: auth.users + public.profiles + user_roles (os do metrics, ou os da base de um projeto próprio).
 export interface Profile { id: string; email: string; full_name: string | null }
 
 interface SessionState {
@@ -51,7 +51,7 @@ function RealSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => load(data.session));
     const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
-      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') load(s);
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED' || event === 'PASSWORD_RECOVERY') load(s);
     });
     return () => sub.subscription.unsubscribe();
   }, [load]);

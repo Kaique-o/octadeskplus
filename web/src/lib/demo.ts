@@ -276,6 +276,7 @@ const clienteDemo = {
     signInWithPassword: async () => ({ data: { session: demoSession.session }, error: null }),
     updateUser: async () => ({ error: null }),
     resetPasswordForEmail: async () => ({ error: null }),
+    signUp: async () => ({ data: { session: demoSession.session }, error: null }),
   },
 };
 

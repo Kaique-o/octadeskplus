@@ -3,7 +3,7 @@ import { Alert, PageHeader, Spinner } from '../components/ui';
 import { errorMessage, supabase } from '../lib/supabase';
 import { useSession } from '../lib/session';
 
-/** Dados do próprio usuário. O cadastro é o do metrics (public.profiles) — mudar aqui muda lá. */
+/** Dados do próprio usuário. Grava em public.profiles (no banco do metrics, muda lá também). */
 export default function Profile() {
   const { session, profile, podeEditar, refresh } = useSession();
   const [nome, setNome] = useState('');
@@ -29,12 +29,12 @@ export default function Profile() {
     setBusy(false);
     if (error) return flash('error', errorMessage(error));
     setSenha({ nova: '', confirmar: '' });
-    flash('success', 'Senha alterada. Ela vale também para o metrics.');
+    flash('success', 'Senha alterada.');
   }
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Meu perfil" subtitle="Seu login é o mesmo do metrics: nome e senha mudam nos dois." />
+      <PageHeader title="Meu perfil" subtitle="Seu nome e sua senha de acesso ao painel." />
       {aviso && <Alert kind={aviso.kind}>{aviso.text}</Alert>}
 
       <section className="card max-w-xl p-5">
@@ -63,7 +63,7 @@ export default function Profile() {
       <section className="card max-w-xl p-5">
         <h2 className="font-semibold">Acesso ao Octadesk Plus</h2>
         <p className="mt-2 text-sm">{podeEditar ? 'Você pode criar e editar automações e configurações.' : 'Você pode ver tudo, mas não editar.'}</p>
-        <p className="mt-1 text-xs text-muted">Permissões vêm do perfil de acesso no metrics (recurso “octaplus”, ações “ver” e “editar”). Dono e superadmin têm acesso total.</p>
+        <p className="mt-1 text-xs text-muted">Permissões vêm do perfil de acesso (recurso “octaplus”, ações “ver” e “editar”). Dono e superadmin têm acesso total.</p>
       </section>
     </div>
   );

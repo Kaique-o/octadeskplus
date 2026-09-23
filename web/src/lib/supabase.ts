@@ -30,6 +30,15 @@ export function errorMessage(e: unknown): string {
     sem_permissao: 'Você não tem permissão para esta ação.',
     fonte_combina_com_gatilho: 'A origem e o gatilho escolhidos não combinam.',
     'Invalid login credentials': 'E-mail ou senha incorretos.',
+    'Email not confirmed': 'Confirme o e-mail pelo link que enviamos antes de entrar.',
+    'User already registered': 'Já existe uma conta com este e-mail.',
+    'Signups not allowed': 'O cadastro está fechado. Peça acesso a quem administra o painel.',
+    'Password should be at least': 'A senha é curta demais.',
+    'New password should be different': 'A nova senha precisa ser diferente da atual.',
+    'Auth session missing': 'O link expirou ou já foi usado. Peça um novo.',
+    'rate limit': 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.',
+    'For security purposes': 'Por segurança, espere alguns segundos antes de pedir de novo.',
+    'invalid format': 'E-mail inválido.',
   };
   return Object.entries(map).find(([k]) => raw.includes(k))?.[1] ?? raw;
 }
