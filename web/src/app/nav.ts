@@ -49,7 +49,7 @@ export const AJUDA: Record<string, { titulo: string; texto: string }> = {
     titulo: 'Integrações',
     texto: 'Sistemas externos ligados a esta empresa. Em "Adicionar integração" você conecta o metrics informando a URL do '
       + 'Supabase dele e uma chave de acesso — a chave fica guardada no servidor e nunca volta para a tela. Trello, Salesforce, '
-      + 'HubSpot e os demais aparecem como "Em breve". Editar e Desconectar ficam no ⋮ de cada integração.',
+      + 'HubSpot e os demais aparecem como "Indisponível". Editar e Desconectar ficam no ⋮ de cada integração.',
   },
   '/app/configuracoes/empresa': {
     titulo: 'Empresa',

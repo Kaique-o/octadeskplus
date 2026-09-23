@@ -12,7 +12,7 @@ interface Integracao {
   ultimo_erro: string | null; criada_em: string; atualizada_em: string;
 }
 
-// Catálogo do modal. Só o metrics conecta hoje; o resto aparece bloqueado ("Em breve").
+// Catálogo do modal. Só o metrics conecta hoje; o resto aparece bloqueado ("Indisponível").
 // Logos das marcas vêm do simple-icons (SVG embutido, sem CDN). Salesforce, Pipedrive e RD Station não estão no
 // pacote: ficam com as iniciais na cor da marca até chegar a logo; o metrics também, até recebermos a dele.
 interface ItemCatalogo { tipo: string; nome: string; descricao: string; cor: string; sigla: string; icone?: SimpleIcon; disponivel?: boolean }
@@ -134,7 +134,7 @@ export default function IntegracoesExternas() {
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
                       <strong className="font-semibold">{c.nome}</strong>
-                      {bloqueada ? <span className="flex items-center gap-1 text-xs text-muted"><Lock className="h-3.5 w-3.5" />Em breve</span>
+                      {bloqueada ? <span className="flex items-center gap-1 text-xs text-muted"><Lock className="h-3.5 w-3.5" />Indisponível</span>
                         : conectada ? <span className="text-xs font-medium text-success">Conectado</span> : null}
                     </span>
                     <span className="mt-0.5 block text-xs text-muted">{c.descricao}</span>
