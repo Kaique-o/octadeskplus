@@ -1300,3 +1300,834 @@ $$;
 
 revoke execute on function octaplus.primeiro_acesso() from public;
 grant execute on function octaplus.primeiro_acesso() to anon, authenticated;
+
+-- ===== migrations/20260924000001_octaplus_multiempresa.sql =====
+-- =====================================================================
+-- Octadesk Plus — várias empresas no mesmo banco, isoladas por RLS.
+--
+-- Cada linha do schema carrega empresa_id. O painel manda o header `x-empresa` e o banco só mostra o que é
+-- dessa empresa, e só para quem tem vínculo ativo com ela (octaplus.membros) ou é o dono da plataforma
+-- (papel 'owner' em public.user_roles). O header escolhe o contexto; quem garante o acesso é o banco.
+-- O motor (n8n e pg_cron) não usa header: toda função do motor recebe ou descobre a empresa.
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- Empresas e vínculos
+-- ---------------------------------------------------------------------
+create table octaplus.empresas (
+  id        uuid primary key default gen_random_uuid(),
+  nome      text not null check (btrim(nome) <> ''),
+  ativa     boolean not null default true,
+  cnpj      text check (cnpj is null or cnpj ~ '^\d{14}$'),
+  telefone  text,
+  site      text,
+  criada_em timestamptz not null default now()
+);
+
+create table octaplus.membros (
+  empresa_id uuid not null references octaplus.empresas(id) on delete cascade,
+  user_id    uuid not null,        -- auth.users.id
+  nivel      text not null default 'ver' check (nivel in ('ver', 'editar')),
+  ativo      boolean not null default true,
+  criado_em  timestamptz not null default now(),
+  primary key (empresa_id, user_id)
+);
+create index on octaplus.membros (user_id);
+
+-- A empresa que já existia (uma só) vira a primeira; os dados cadastrais saem de configuracao.
+insert into octaplus.empresas (nome, cnpj, telefone, site)
+select coalesce(nullif(btrim(empresa_nome), ''), 'Empresa principal'), empresa_cnpj, empresa_telefone, empresa_site
+from octaplus.configuracao;
+
+-- ---------------------------------------------------------------------
+-- Empresa atual (header do painel) e permissões
+-- ---------------------------------------------------------------------
+create or replace function octaplus.empresa_atual() returns uuid
+language plpgsql stable as $$
+declare h text := current_setting('request.headers', true);
+begin
+  if coalesce(h, '') = '' then return null; end if;
+  return nullif(h::json ->> 'x-empresa', '')::uuid;
+exception when others then
+  return null;   -- header malformado = sem empresa
+end $$;
+
+-- Dono da plataforma: vê e configura todas as empresas.
+create or replace function octaplus.e_dono() returns boolean
+language sql stable security definer set search_path = public, octaplus as $$
+  select auth.uid() is not null and public.has_role(auth.uid(), 'owner');
+$$;
+
+-- 'ver' ou 'editar' numa empresa: dono sempre; os demais com vínculo ativo numa empresa ativa.
+create or replace function octaplus.pode_na(p_empresa uuid, p_acao text) returns boolean
+language sql stable security definer set search_path = public, octaplus as $$
+  select auth.uid() is not null and p_empresa is not null and (
+    octaplus.e_dono() or exists (
+      select 1 from octaplus.membros m join octaplus.empresas e on e.id = m.empresa_id
+      where m.empresa_id = p_empresa and m.user_id = auth.uid() and m.ativo and e.ativa
+        and (p_acao = 'ver' or m.nivel = 'editar')));
+$$;
+
+-- Mesma assinatura de antes: agora vale para a empresa atual.
+create or replace function octaplus.pode(p_acao text) returns boolean
+language sql stable security definer set search_path = public, octaplus as $$
+  select octaplus.pode_na(octaplus.empresa_atual(), p_acao);
+$$;
+
+-- ---------------------------------------------------------------------
+-- empresa_id em todas as tabelas
+-- ---------------------------------------------------------------------
+do $$
+declare t text; principal uuid := (select id from octaplus.empresas order by criada_em limit 1);
+begin
+  foreach t in array array['configuracao', 'integracao_octadesk', 'segredos', 'octa_numeros', 'octa_templates',
+    'octa_grupos', 'octa_tags', 'mapa_filas', 'automacoes', 'automacao_acoes', 'eventos', 'execucoes', 'envios',
+    'nao_perturbe', 'chaves_api', 'chamadas_api'] loop
+    execute format('alter table octaplus.%I add column empresa_id uuid references octaplus.empresas(id) on delete cascade', t);
+    execute format('update octaplus.%I set empresa_id = %L', t, principal);
+    execute format('alter table octaplus.%I alter column empresa_id set not null, alter column empresa_id set default octaplus.empresa_atual()', t);
+  end loop;
+end $$;
+
+-- configuracao e integracao_octadesk: uma linha por empresa
+alter table octaplus.configuracao drop constraint configuracao_pkey, drop column id,
+  drop column empresa_nome, drop column empresa_cnpj, drop column empresa_telefone, drop column empresa_site,
+  add primary key (empresa_id);
+alter table octaplus.integracao_octadesk drop constraint integracao_octadesk_pkey, drop column id,
+  add primary key (empresa_id),
+  add constraint integracao_octadesk_segredo_webhook_key unique (segredo_webhook);   -- identifica a empresa no webhook
+
+alter table octaplus.segredos       drop constraint segredos_pkey,       add primary key (empresa_id, chave);
+alter table octaplus.octa_numeros   drop constraint octa_numeros_pkey,   add primary key (empresa_id, id),
+  drop constraint octa_numeros_numero_key, add unique (empresa_id, numero);
+alter table octaplus.octa_templates drop constraint octa_templates_pkey, add primary key (empresa_id, id);
+alter table octaplus.octa_grupos    drop constraint octa_grupos_pkey,    add primary key (empresa_id, id);
+alter table octaplus.octa_tags      drop constraint octa_tags_pkey,      add primary key (empresa_id, id);
+alter table octaplus.mapa_filas     drop constraint mapa_filas_pkey,     add primary key (empresa_id, tipo_entrega);
+alter table octaplus.nao_perturbe
+  drop constraint nao_perturbe_telefone_key, drop constraint nao_perturbe_client_id_key,
+  add unique (empresa_id, telefone), add unique (empresa_id, client_id);
+
+create index on octaplus.automacoes (empresa_id);
+create index on octaplus.envios (empresa_id, telefone, enviado_em desc);
+create index on octaplus.eventos (empresa_id, recebido_em desc);
+create index on octaplus.execucoes (empresa_id, concluido_em desc);
+
+-- ---------------------------------------------------------------------
+-- RLS: só a empresa atual, e só com permissão nela
+-- ---------------------------------------------------------------------
+do $$
+declare p record;
+begin
+  for p in select tablename, policyname from pg_policies where schemaname = 'octaplus' loop
+    execute format('drop policy %I on octaplus.%I', p.policyname, p.tablename);
+  end loop;
+end $$;
+
+do $$
+declare t text;
+begin
+  foreach t in array array['configuracao', 'integracao_octadesk', 'octa_numeros', 'octa_templates', 'octa_grupos',
+    'octa_tags', 'mapa_filas', 'automacoes', 'automacao_acoes', 'eventos', 'execucoes', 'envios', 'nao_perturbe',
+    'chaves_api', 'chamadas_api'] loop
+    execute format('create policy ver on octaplus.%I for select using (empresa_id = octaplus.empresa_atual() and octaplus.pode(''ver''))', t);
+  end loop;
+  -- escrita direta do painel (o resto passa por funções)
+  foreach t in array array['configuracao', 'octa_numeros', 'automacoes'] loop
+    execute format('create policy editar on octaplus.%I for update using (empresa_id = octaplus.empresa_atual() and octaplus.pode(''editar'')) with check (empresa_id = octaplus.empresa_atual())', t);
+  end loop;
+  foreach t in array array['mapa_filas', 'nao_perturbe'] loop
+    execute format('create policy editar on octaplus.%I for all using (empresa_id = octaplus.empresa_atual() and octaplus.pode(''editar'')) with check (empresa_id = octaplus.empresa_atual() and octaplus.pode(''editar''))', t);
+  end loop;
+end $$;
+
+alter table octaplus.empresas enable row level security;
+alter table octaplus.membros  enable row level security;
+create policy ver on octaplus.empresas for select using (octaplus.pode_na(id, 'ver'));
+create policy ver on octaplus.membros  for select using (octaplus.e_dono() or user_id = auth.uid());
+-- empresas e vínculos só mudam pelas funções da área Owner
+grant select on octaplus.empresas, octaplus.membros to authenticated;
+revoke insert, update, delete on octaplus.empresas, octaplus.membros from anon, authenticated;
+
+revoke execute on function octaplus.empresa_atual(), octaplus.e_dono(), octaplus.pode_na(uuid, text) from public, anon;
+grant execute on function octaplus.empresa_atual(), octaplus.e_dono(), octaplus.pode_na(uuid, text) to authenticated;
+
+-- ===== migrations/20260924000002_octaplus_motor_multiempresa.sql =====
+-- =====================================================================
+-- Octadesk Plus — motor e RPCs do painel por empresa.
+-- Motor: a empresa vem da automação, do segredo do webhook ou da chave de API — nunca do header.
+-- Painel: a empresa é a atual (header x-empresa), já garantida pelo pode().
+-- =====================================================================
+
+-- Assinaturas que mudam: sai a versão de empresa única
+drop function octaplus.proximo_horario_util(timestamptz);
+drop function octaplus.credenciais_octadesk();
+drop function octaplus.gravar_jwt(text, timestamptz);
+drop function octaplus.gravar_catalogos(jsonb);
+
+-- ---------------------------------------------------------------------
+-- Helpers
+-- ---------------------------------------------------------------------
+create or replace function octaplus.proximo_horario_util(p_em timestamptz, p_empresa uuid) returns timestamptz
+language plpgsql stable security definer set search_path = octaplus as $$
+declare c configuracao; local_ts timestamp; dia jsonb; w jsonb; ini time; fim time; i int;
+begin
+  select * into c from configuracao where empresa_id = p_empresa;
+  if c.horario_comercial -> 'perDay' is null then return p_em; end if;
+  local_ts := p_em at time zone c.fuso;
+  for i in 0..14 loop
+    dia := c.horario_comercial -> 'perDay' -> extract(dow from local_ts)::text;
+    if coalesce((dia ->> 'enabled')::boolean, false) then
+      for w in select value from jsonb_array_elements(coalesce(dia -> 'windows', '[]')) order by value ->> 'start' loop
+        ini := (w ->> 'start')::time; fim := (w ->> 'end')::time;
+        if local_ts::time < ini then return (local_ts::date + ini) at time zone c.fuso; end if;
+        if local_ts::time < fim then return local_ts at time zone c.fuso; end if;
+      end loop;
+    end if;
+    local_ts := (local_ts::date + 1)::timestamp;
+  end loop;
+  return p_em;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Funil único de eventos (regras dentro da empresa da automação)
+-- ---------------------------------------------------------------------
+create or replace function octaplus.registrar_evento(
+  p_automacao uuid, p_dedupe text, p_cliente uuid, p_contato text, p_conversa text,
+  p_telefone text, p_nome text, p_dados jsonb
+) returns jsonb
+language plpgsql security definer set search_path = octaplus, public as $$
+declare
+  a automacoes; cfg configuracao; ctx jsonb := '{}'; tel text; contato text; dados jsonb;
+  motivo text; eid uuid; t timestamptz; act automacao_acoes; n int := 0; manda_mensagem boolean;
+begin
+  select * into a from automacoes where id = p_automacao;
+  if a.id is null or not a.ativa or a.arquivada_em is not null then
+    return jsonb_build_object('ok', false, 'motivo', 'automacao_inativa');
+  end if;
+  if not exists (select 1 from empresas where id = a.empresa_id and ativa) then
+    return jsonb_build_object('ok', false, 'motivo', 'empresa_inativa');
+  end if;
+  select * into cfg from configuracao where empresa_id = a.empresa_id;
+
+  if p_cliente is not null then ctx := coalesce(contexto_cliente(p_cliente), '{}'); end if;
+  tel := coalesce(normalizar_telefone(p_telefone), ctx ->> 'telefone');
+  contato := coalesce(p_contato, ctx ->> 'octadesk_contact_id');
+  ctx := ctx || jsonb_strip_nulls(jsonb_build_object('telefone', tel, 'nome', coalesce(ctx ->> 'nome', p_nome)));
+  if ctx ->> 'primeiro_nome' is null and ctx ->> 'nome' is not null then
+    ctx := ctx || jsonb_build_object('primeiro_nome', initcap(split_part(trim(ctx ->> 'nome'), ' ', 1)));
+  end if;
+  dados := jsonb_build_object('cliente', ctx, 'evento', coalesce(p_dados, '{}'));
+
+  select exists (select 1 from automacao_acoes where automacao_id = a.id and tipo in ('enviar_template', 'enviar_mensagem'))
+    into manda_mensagem;
+
+  motivo := case
+    when not exists (select 1 from automacao_acoes where automacao_id = a.id) then 'sem_acoes'
+    when manda_mensagem and tel is null then 'telefone_invalido'
+    when exists (select 1 from nao_perturbe np where np.empresa_id = a.empresa_id
+                   and (np.telefone = tel or (p_cliente is not null and np.client_id = p_cliente)))
+      then 'nao_perturbe'
+    when not atende_condicoes(a.condicoes, dados) then 'condicoes'
+    when manda_mensagem and cfg.limite_contato_horas > 0 and (
+      exists (select 1 from envios e where e.empresa_id = a.empresa_id and e.telefone = tel and e.tipo <> 'nota'
+                and e.enviado_em > now() - make_interval(hours => cfg.limite_contato_horas))
+      or exists (select 1 from execucoes x join eventos ev on ev.id = x.evento_id
+                 join automacao_acoes aa on aa.id = x.acao_id
+                 where x.empresa_id = a.empresa_id and ev.telefone = tel and x.status in ('pendente', 'executando')
+                   and aa.tipo in ('enviar_template', 'enviar_mensagem')))
+      then 'limite_contato'
+  end;
+
+  insert into eventos (empresa_id, automacao_id, dedupe_key, client_id, octadesk_contact_id, conversa_id, telefone, nome, dados, situacao, motivo)
+  values (a.empresa_id, a.id, p_dedupe, p_cliente, contato, p_conversa, tel, ctx ->> 'nome', dados,
+          case when motivo is null then 'agendado' else 'ignorado' end, motivo)
+  on conflict (automacao_id, dedupe_key) do nothing
+  returning id into eid;
+
+  if eid is null then return jsonb_build_object('ok', true, 'motivo', 'duplicado'); end if;
+  if motivo is not null then return jsonb_build_object('ok', true, 'evento_id', eid, 'ignorado', motivo); end if;
+
+  t := now() + intervalo(a.atraso_valor, a.atraso_unidade);
+  for act in select * from automacao_acoes where automacao_id = a.id order by posicao loop
+    t := t + intervalo(act.espera_valor, act.espera_unidade);
+    insert into execucoes (empresa_id, automacao_id, acao_id, evento_id, agendado_para)
+    values (a.empresa_id, a.id, act.id, eid,
+            case when a.respeitar_horario and act.tipo in ('enviar_template', 'enviar_mensagem')
+                 then proximo_horario_util(t, a.empresa_id) else t end);
+    n := n + 1;
+  end loop;
+  return jsonb_build_object('ok', true, 'evento_id', eid, 'execucoes', n);
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Entradas
+-- ---------------------------------------------------------------------
+
+-- Webhooks de conversa do Octadesk: o segredo do caminho da URL identifica a empresa.
+create or replace function octaplus.receber_octadesk(p_segredo text, p_evento text, p_dados jsonb)
+returns jsonb language plpgsql security definer set search_path = octaplus, public as $$
+declare
+  emp uuid; alvo tipo_gatilho; a automacoes; contato text; tel text; cliente uuid; sala text; chave text;
+  msg jsonb; total int := 0; conversa jsonb;
+begin
+  select empresa_id into emp from integracao_octadesk where segredo_webhook = coalesce(p_segredo, '');
+  if emp is null then return jsonb_build_object('ok', false, 'motivo', 'nao_autorizado'); end if;
+  alvo := case p_evento
+    when 'room.after-close'          then 'octa_conversa_encerrada'
+    when 'room.after-set-agent'      then 'octa_conversa_atribuida'
+    when 'room.after-insert-message' then 'octa_nova_mensagem'
+  end;
+  if alvo is null then return jsonb_build_object('ok', true, 'motivo', 'evento_nao_usado'); end if;
+
+  sala    := p_dados ->> 'id';
+  contato := p_dados #>> '{contact,id}';
+  tel     := coalesce(p_dados #>> '{contact,phoneContacts,0,countryCode}', '') || coalesce(p_dados #>> '{contact,phoneContacts,0,number}', '');
+  cliente := case when contato is not null then cliente_por_contato(contato) end;
+  msg     := p_dados -> 'messages' -> -1;
+  chave   := p_evento || ':' || sala || case when alvo = 'octa_nova_mensagem'
+               then ':' || coalesce(msg ->> 'id', p_dados ->> 'lastMessageDate', '') else '' end;
+  conversa := jsonb_strip_nulls(jsonb_build_object(
+    'id', sala, 'numero', p_dados ->> 'number', 'status', p_dados ->> 'status',
+    'agente', p_dados #>> '{agent,name}', 'agente_id', p_dados #>> '{agent,id}',
+    'grupo', p_dados #>> '{group,name}', 'grupo_id', p_dados #>> '{group,id}',
+    'origem', p_dados ->> 'origin', 'tags', p_dados -> 'tags',
+    'ultima_mensagem', msg ->> 'body', 'ultima_mensagem_de', msg #>> '{sentBy,type}'));
+
+  for a in select * from automacoes where empresa_id = emp and fonte = 'octadesk' and gatilho = alvo
+             and ativa and arquivada_em is null loop
+    perform registrar_evento(a.id, chave, cliente, contato, sala, tel, p_dados #>> '{contact,name}',
+                             jsonb_build_object('conversa', conversa));
+    total := total + 1;
+  end loop;
+  return jsonb_build_object('ok', true, 'automacoes', total);
+end $$;
+
+-- Rodada dos detectores: janela de cada empresa, empresas inativas de fora.
+create or replace function octaplus.detectar_eventos(p_limite integer default 500) returns jsonb
+language plpgsql security definer set search_path = octaplus, public as $$
+declare a automacoes; c candidato; desde timestamptz; janela int; r jsonb; resumo jsonb := '{}'; n int;
+begin
+  for a in select au.* from automacoes au join empresas e on e.id = au.empresa_id
+           where au.fonte = 'metrics' and au.ativa and au.arquivada_em is null and e.ativa loop
+    select janela_deteccao_horas into janela from configuracao where empresa_id = a.empresa_id;
+    desde := greatest(coalesce(a.ativa_desde, now()), now() - make_interval(hours => coalesce(janela, 48)));
+    n := 0;
+    for c in
+      select * from candidatos(a, desde) k
+      where not exists (select 1 from eventos e where e.automacao_id = a.id and e.dedupe_key = k.dedupe)
+      limit p_limite
+    loop
+      r := registrar_evento(a.id, c.dedupe, c.client_id, c.contato, c.conversa, c.telefone, c.nome, c.dados);
+      n := n + 1;
+    end loop;
+    resumo := resumo || jsonb_build_object(a.nome, n);
+  end loop;
+  return resumo;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Motor (n8n)
+-- ---------------------------------------------------------------------
+
+-- Credenciais e estado da integração de uma empresa
+create or replace function octaplus.credenciais_octadesk(p_empresa uuid) returns jsonb
+language sql stable security definer set search_path = octaplus as $$
+  select to_jsonb(i) - 'segredo_webhook' || jsonb_build_object(
+    'api_key',  (select valor from segredos s where s.empresa_id = i.empresa_id and chave = 'octadesk_api_key'),
+    'usuario',  (select valor from segredos s where s.empresa_id = i.empresa_id and chave = 'octadesk_usuario'),
+    'senha',    (select valor from segredos s where s.empresa_id = i.empresa_id and chave = 'octadesk_senha'),
+    'tenant',   (select valor from segredos s where s.empresa_id = i.empresa_id and chave = 'octadesk_tenant'),
+    'jwt',      (select valor from segredos s where s.empresa_id = i.empresa_id and chave = 'octadesk_jwt'),
+    'jwt_expira_em', (select expira_em from segredos s where s.empresa_id = i.empresa_id and chave = 'octadesk_jwt'),
+    'catalogo_vencido', i.sincronizado_em is null or i.sincronizado_em < now() - interval '1 hour'
+                        or i.sincronizacao_pedida_em > coalesce(i.sincronizado_em, '-infinity'))
+  from integracao_octadesk i where i.empresa_id = p_empresa;
+$$;
+
+-- Manutenção do n8n: uma linha por empresa ativa com integração preenchida
+create or replace function octaplus.credenciais_octadesk() returns setof jsonb
+language sql stable security definer set search_path = octaplus as $$
+  select credenciais_octadesk(e.id) from empresas e join integracao_octadesk i on i.empresa_id = e.id
+  where e.ativa and i.base_url is not null order by e.criada_em;
+$$;
+
+create or replace function octaplus.gravar_jwt(p_empresa uuid, p_token text, p_expira_em timestamptz) returns void
+language sql security definer set search_path = octaplus as $$
+  insert into segredos (empresa_id, chave, valor, expira_em) values (p_empresa, 'octadesk_jwt', p_token, p_expira_em)
+  on conflict (empresa_id, chave) do update set valor = excluded.valor, expira_em = excluded.expira_em, atualizado_em = now();
+$$;
+
+-- Resultado do /auth/check + catálogos de uma empresa. p = {ok, erro, numeros[], templates[], grupos[], tags[]}
+create or replace function octaplus.gravar_catalogos(p_empresa uuid, p jsonb) returns void
+language plpgsql security definer set search_path = octaplus as $$
+begin
+  if not coalesce((p ->> 'ok')::boolean, false) then
+    update integracao_octadesk set status = 'erro', ultimo_erro = left(p ->> 'erro', 500), validado_em = now()
+    where empresa_id = p_empresa;
+    return;
+  end if;
+
+  insert into octa_numeros (empresa_id, id, nome, numero, ativo, sincronizado_em)
+  select p_empresa, x ->> 'id', x ->> 'name', x ->> 'number', true, now() from jsonb_array_elements(coalesce(p -> 'numeros', '[]')) x
+  on conflict (empresa_id, id) do update set nome = excluded.nome, numero = excluded.numero, ativo = true, sincronizado_em = now();
+  update octa_numeros set ativo = false
+  where empresa_id = p_empresa and id not in (select x ->> 'id' from jsonb_array_elements(coalesce(p -> 'numeros', '[]')) x);
+
+  delete from octa_templates where empresa_id = p_empresa;
+  insert into octa_templates (empresa_id, id, nome, status, categoria, habilitado, componentes, variaveis, corpo)
+  select p_empresa, x ->> 'id', x ->> 'name', x ->> 'status', x ->> 'category', (x ->> 'enable')::boolean,
+         coalesce(x -> 'components', '[]'),
+         array(select distinct v ->> 'key' from jsonb_array_elements(coalesce(x -> 'components', '[]')) comp,
+                    jsonb_array_elements(coalesce(comp -> 'variables', '[]')) v where v ->> 'key' is not null),
+         (select comp ->> 'message' from jsonb_array_elements(coalesce(x -> 'components', '[]')) comp
+          where upper(comp ->> 'type') = 'BODY' limit 1)
+  from jsonb_array_elements(coalesce(p -> 'templates', '[]')) x;
+
+  delete from octa_grupos where empresa_id = p_empresa;
+  insert into octa_grupos (empresa_id, id, nome)
+  select p_empresa, x ->> 'id', x ->> 'name' from jsonb_array_elements(coalesce(p -> 'grupos', '[]')) x;
+  delete from octa_tags where empresa_id = p_empresa;
+  insert into octa_tags (empresa_id, id, nome)
+  select p_empresa, x ->> 'id', x ->> 'name' from jsonb_array_elements(coalesce(p -> 'tags', '[]')) x;
+
+  update integracao_octadesk set status = 'conectado', ultimo_erro = null, validado_em = now(), sincronizado_em = now()
+  where empresa_id = p_empresa;
+end $$;
+
+-- Saída do Code node de manutenção, um item por empresa: {empresa_id, catalogo?, jwt?: {token, expira_em}}
+create or replace function octaplus.gravar_manutencao(p jsonb) returns void
+language plpgsql security definer set search_path = octaplus as $$
+declare emp uuid := (p ->> 'empresa_id')::uuid;
+begin
+  if emp is null then return; end if;
+  if p ? 'catalogo' then perform gravar_catalogos(emp, p -> 'catalogo'); end if;
+  if p #>> '{jwt,token}' is not null then
+    perform gravar_jwt(emp, p #>> '{jwt,token}', (p #>> '{jwt,expira_em}')::timestamptz);
+  end if;
+end $$;
+
+-- Execuções vencidas com a configuração e as credenciais da empresa de cada uma
+create or replace function octaplus.pegar_execucoes(p_limite integer default 50) returns setof jsonb
+language plpgsql security definer set search_path = octaplus as $$
+begin
+  update execucoes set status = 'pendente', travado_em = null
+  where status = 'executando' and travado_em < now() - interval '10 minutes';
+
+  return query
+  with vencidas as (
+    select x.id from execucoes x join empresas emp on emp.id = x.empresa_id and emp.ativa
+    where x.status = 'pendente' and x.agendado_para <= now()
+    order by x.agendado_para limit p_limite for update of x skip locked
+  ), marcadas as (
+    update execucoes x set status = 'executando', travado_em = now(), tentativas = x.tentativas + 1
+    from vencidas where x.id = vencidas.id returning x.*
+  )
+  select jsonb_build_object(
+    'execucao_id', m.id, 'tentativas', m.tentativas, 'empresa_id', m.empresa_id,
+    'automacao', jsonb_build_object('id', a.id, 'nome', a.nome),
+    'acao', jsonb_build_object('id', ac.id, 'tipo', ac.tipo, 'posicao', ac.posicao, 'config', ac.config),
+    'evento', jsonb_build_object('id', e.id, 'telefone', e.telefone, 'nome', e.nome, 'client_id', e.client_id,
+                                 'octadesk_contact_id', e.octadesk_contact_id, 'conversa_id', e.conversa_id, 'dados', e.dados),
+    'numero_padrao', cfg.numero_envio_padrao,
+    'fila', case when ac.tipo = 'transferir_fila' then coalesce(
+              nullif(ac.config ->> 'grupo_id', ''),
+              (select f.grupo_id from mapa_filas f where f.empresa_id = m.empresa_id
+                 and upper(f.tipo_entrega) = upper(e.dados #>> '{cliente,tipo_entrega}')),
+              (select f.grupo_id from mapa_filas f where f.empresa_id = m.empresa_id and f.tipo_entrega = '*')) end,
+    'octadesk', credenciais_octadesk(m.empresa_id))
+  from marcadas m
+  join automacoes a on a.id = m.automacao_id
+  join automacao_acoes ac on ac.id = m.acao_id
+  join eventos e on e.id = m.evento_id
+  left join configuracao cfg on cfg.empresa_id = m.empresa_id;
+end $$;
+
+create or replace function octaplus.concluir_execucao(
+  p_execucao uuid, p_status text, p_resultado jsonb default null, p_erro text default null, p_codigo text default null
+) returns void language plpgsql security definer set search_path = octaplus as $$
+declare x execucoes; ev eventos; st status_execucao := p_status::status_execucao;
+begin
+  select * into x from execucoes where id = p_execucao;
+  if x.id is null then return; end if;
+
+  if st = 'pendente' and x.tentativas < 3 then
+    update execucoes set status = 'pendente', erro = p_erro, codigo_erro = p_codigo, travado_em = null,
+                         agendado_para = now() + make_interval(mins => 5 * x.tentativas)
+    where id = x.id;
+    return;
+  end if;
+  if st = 'pendente' then st := 'erro'; end if;
+
+  update execucoes set status = st, resultado = p_resultado, erro = p_erro, codigo_erro = p_codigo,
+                       concluido_em = now(), travado_em = null
+  where id = x.id;
+
+  if st = 'sucesso' then
+    select * into ev from eventos where id = x.evento_id;
+    if p_resultado ->> 'room_key' is not null and ev.conversa_id is null then
+      update eventos set conversa_id = p_resultado ->> 'room_key' where id = ev.id;
+    end if;
+    if p_resultado ? 'envio' then
+      insert into envios (empresa_id, execucao_id, automacao_id, client_id, telefone, tipo, template_id, numero_origem, room_key, message_key)
+      values (x.empresa_id, x.id, x.automacao_id, ev.client_id, ev.telefone, p_resultado #>> '{envio,tipo}', p_resultado #>> '{envio,template_id}',
+              p_resultado #>> '{envio,numero_origem}', coalesce(p_resultado ->> 'room_key', ev.conversa_id), p_resultado ->> 'message_key');
+    end if;
+  end if;
+end $$;
+
+-- API pública: a chave diz a empresa
+create or replace function octaplus.api_formatar_telefone(p_segredo text, p_telefone text) returns jsonb
+language plpgsql security definer set search_path = octaplus, extensions, public as $$
+declare k chaves_api; formatado text;
+begin
+  select c.* into k from chaves_api c join empresas e on e.id = c.empresa_id and e.ativa
+  where c.hash = encode(digest(coalesce(p_segredo, ''), 'sha256'), 'hex') and c.revogada_em is null;
+  if k.id is null then return jsonb_build_object('ok', false, 'error', 'invalid_api_key'); end if;
+  formatado := normalizar_telefone(p_telefone);
+  update chaves_api set usado_em = now() where id = k.id;
+  insert into chamadas_api (empresa_id, chave_id, endpoint, ok) values (k.empresa_id, k.id, '/v1/format', formatado is not null);
+  return jsonb_build_object('ok', formatado is not null, 'input', p_telefone, 'e164', formatado,
+                            'digits', regexp_replace(coalesce(formatado, ''), '\D', '', 'g'));
+end $$;
+
+-- ---------------------------------------------------------------------
+-- RPCs do painel (empresa atual)
+-- ---------------------------------------------------------------------
+create or replace function octaplus.salvar_automacao(p jsonb) returns uuid
+language plpgsql security definer set search_path = octaplus as $$
+declare aid uuid := nullif(p ->> 'id', '')::uuid; emp uuid := empresa_atual(); x jsonb; i int := 0;
+begin
+  if not pode('editar') then raise exception 'sem_permissao'; end if;
+  if aid is null then
+    insert into automacoes (empresa_id, nome, fonte, gatilho, criado_por)
+    values (emp, p ->> 'nome', (p ->> 'fonte')::fonte_gatilho, (p ->> 'gatilho')::tipo_gatilho, auth.uid())
+    returning id into aid;
+  elsif not exists (select 1 from automacoes where id = aid and empresa_id = emp) then
+    raise exception 'nao_encontrado';
+  end if;
+
+  update automacoes set
+    nome              = coalesce(p ->> 'nome', nome),
+    ativa             = coalesce((p ->> 'ativa')::boolean, ativa),
+    fonte             = coalesce((p ->> 'fonte')::fonte_gatilho, fonte),
+    gatilho           = coalesce((p ->> 'gatilho')::tipo_gatilho, gatilho),
+    parametros        = coalesce(p -> 'parametros', parametros),
+    condicoes         = coalesce(p -> 'condicoes', condicoes),
+    respeitar_horario = coalesce((p ->> 'respeitar_horario')::boolean, respeitar_horario),
+    atraso_valor      = coalesce((p ->> 'atraso_valor')::int, atraso_valor),
+    atraso_unidade    = coalesce((p ->> 'atraso_unidade')::unidade_tempo, atraso_unidade),
+    campo_telefone    = coalesce(p ->> 'campo_telefone', campo_telefone),
+    atualizado_em     = now()
+  where id = aid;
+
+  if p ? 'acoes' then
+    delete from automacao_acoes where automacao_id = aid;
+    for x in select * from jsonb_array_elements(p -> 'acoes') loop
+      insert into automacao_acoes (empresa_id, automacao_id, posicao, tipo, config, espera_valor, espera_unidade)
+      values (emp, aid, i, (x ->> 'tipo')::tipo_acao, coalesce(x -> 'config', '{}'),
+              case when i = 0 then 0 else coalesce((x ->> 'espera_valor')::int, 0) end,
+              coalesce(nullif(x ->> 'espera_unidade', ''), 'minutos')::unidade_tempo);
+      i := i + 1;
+    end loop;
+  end if;
+  return aid;
+end $$;
+
+create or replace function octaplus.duplicar_automacao(p_id uuid) returns uuid
+language plpgsql security definer set search_path = octaplus as $$
+declare nova uuid; emp uuid := empresa_atual();
+begin
+  if not pode('editar') then raise exception 'sem_permissao'; end if;
+  insert into automacoes (empresa_id, nome, ativa, fonte, gatilho, parametros, condicoes, respeitar_horario,
+                          atraso_valor, atraso_unidade, campo_telefone, payload_exemplo, criado_por)
+  select emp, nome || ' (cópia)', false, fonte, gatilho, parametros, condicoes, respeitar_horario,
+         atraso_valor, atraso_unidade, campo_telefone, payload_exemplo, auth.uid()
+  from automacoes where id = p_id and empresa_id = emp returning id into nova;
+  if nova is null then raise exception 'nao_encontrado'; end if;
+  insert into automacao_acoes (empresa_id, automacao_id, posicao, tipo, config, espera_valor, espera_unidade)
+  select emp, nova, posicao, tipo, config, espera_valor, espera_unidade from automacao_acoes where automacao_id = p_id;
+  return nova;
+end $$;
+
+-- p = {base_url, subdominio, agente_email, api_privada_ativa, api_key?, usuario?, senha?, tenant?}
+create or replace function octaplus.salvar_integracao(p jsonb) returns void
+language plpgsql security definer set search_path = octaplus as $$
+declare k text; emp uuid := empresa_atual();
+begin
+  if not pode('editar') then raise exception 'sem_permissao'; end if;
+  update integracao_octadesk set
+    base_url          = coalesce(nullif(rtrim(p ->> 'base_url', '/'), ''), base_url),
+    subdominio        = coalesce(nullif(p ->> 'subdominio', ''), subdominio),
+    agente_email      = coalesce(nullif(p ->> 'agente_email', ''), agente_email),
+    api_privada_ativa = coalesce((p ->> 'api_privada_ativa')::boolean, api_privada_ativa),
+    status = 'validando', ultimo_erro = null, sincronizacao_pedida_em = now()
+  where empresa_id = emp;
+  foreach k in array array['api_key', 'usuario', 'senha', 'tenant'] loop
+    if coalesce(p ->> k, '') <> '' then
+      insert into segredos (empresa_id, chave, valor) values (emp, 'octadesk_' || k, p ->> k)
+      on conflict (empresa_id, chave) do update set valor = excluded.valor, atualizado_em = now();
+      if k in ('usuario', 'senha', 'tenant') then delete from segredos where empresa_id = emp and chave = 'octadesk_jwt'; end if;
+    end if;
+  end loop;
+end $$;
+
+create or replace function octaplus.pedir_sincronizacao() returns void
+language plpgsql security definer set search_path = octaplus as $$
+begin
+  if not pode('editar') then raise exception 'sem_permissao'; end if;
+  update integracao_octadesk set sincronizacao_pedida_em = now() where empresa_id = empresa_atual();
+end $$;
+
+create or replace function octaplus.segredos_preenchidos() returns text[]
+language sql stable security definer set search_path = octaplus as $$
+  select case when pode('ver')
+    then array(select chave from segredos where empresa_id = empresa_atual() and chave <> 'octadesk_jwt') else '{}' end;
+$$;
+
+create or replace function octaplus.criar_chave_api(p_nome text) returns jsonb
+language plpgsql security definer set search_path = octaplus, extensions, public as $$
+declare segredo text := 'br_live_' || encode(gen_random_bytes(24), 'hex'); kid uuid;
+begin
+  if not pode('editar') then raise exception 'sem_permissao'; end if;
+  insert into chaves_api (empresa_id, nome, prefixo, hash, criado_por)
+  values (empresa_atual(), p_nome, left(segredo, 12), encode(digest(segredo, 'sha256'), 'hex'), auth.uid()) returning id into kid;
+  return jsonb_build_object('id', kid, 'segredo', segredo);   -- aparece uma vez só
+end $$;
+
+create or replace function octaplus.revogar_chave_api(p_id uuid) returns void
+language plpgsql security definer set search_path = octaplus as $$
+begin
+  if not pode('editar') then raise exception 'sem_permissao'; end if;
+  update chaves_api set revogada_em = now() where id = p_id and empresa_id = empresa_atual();
+end $$;
+
+create or replace function octaplus.estatisticas_diarias(p_de date, p_ate date, p_automacao uuid default null)
+returns table (
+  dia date, gatilhos bigint, gatilhos_ignorados bigint, acoes bigint, acoes_sucesso bigint,
+  acoes_sem_envio bigint, acoes_erro bigint, envios bigint, respostas bigint, compras bigint, valor_compras numeric
+) language sql stable security definer set search_path = octaplus as $$
+  with emp as (select empresa_atual() id),
+  dias as (select generate_series(p_de, p_ate, interval '1 day')::date d),
+  ev as (select (recebido_em at time zone 'America/Sao_Paulo')::date d, count(*) n, count(*) filter (where situacao = 'ignorado') ign
+         from eventos where empresa_id = (select id from emp) and (p_automacao is null or automacao_id = p_automacao)
+           and recebido_em >= p_de::timestamp at time zone 'America/Sao_Paulo'
+         group by 1),
+  ex as (select (concluido_em at time zone 'America/Sao_Paulo')::date d, count(*) n,
+                count(*) filter (where status = 'sucesso') ok, count(*) filter (where status = 'ignorado') sem,
+                count(*) filter (where status = 'erro') err
+         from execucoes where empresa_id = (select id from emp) and concluido_em is not null
+           and (p_automacao is null or automacao_id = p_automacao)
+           and concluido_em >= p_de::timestamp at time zone 'America/Sao_Paulo'
+         group by 1),
+  en as (select (enviado_em at time zone 'America/Sao_Paulo')::date d, count(*) filter (where tipo <> 'nota') n,
+                count(respondeu_em) resp, count(comprou_em) comp, coalesce(sum(valor_compra), 0) valor
+         from envios where empresa_id = (select id from emp) and (p_automacao is null or automacao_id = p_automacao)
+           and enviado_em >= p_de::timestamp at time zone 'America/Sao_Paulo'
+         group by 1)
+  select dias.d, coalesce(ev.n, 0), coalesce(ev.ign, 0), coalesce(ex.n, 0), coalesce(ex.ok, 0), coalesce(ex.sem, 0),
+         coalesce(ex.err, 0), coalesce(en.n, 0), coalesce(en.resp, 0), coalesce(en.comp, 0), coalesce(en.valor, 0)
+  from dias left join ev on ev.d = dias.d left join ex on ex.d = dias.d left join en on en.d = dias.d
+  where pode('ver')
+  order by dias.d;
+$$;
+
+create or replace function octaplus.resumo_automacoes()
+returns table (automacao_id uuid, executadas bigint, erros bigint, sem_envio bigint, ultima_execucao timestamptz,
+               envios bigint, respostas bigint, compras bigint)
+language sql stable security definer set search_path = octaplus as $$
+  select a.id,
+    (select count(*) from execucoes x where x.automacao_id = a.id and x.status = 'sucesso'),
+    (select count(*) from execucoes x where x.automacao_id = a.id and x.status = 'erro'),
+    (select count(*) from execucoes x where x.automacao_id = a.id and x.status = 'ignorado')
+      + (select count(*) from eventos e where e.automacao_id = a.id and e.situacao = 'ignorado'),
+    (select max(x.concluido_em) from execucoes x where x.automacao_id = a.id),
+    (select count(*) from envios v where v.automacao_id = a.id and v.tipo <> 'nota'),
+    (select count(respondeu_em) from envios v where v.automacao_id = a.id),
+    (select count(comprou_em) from envios v where v.automacao_id = a.id)
+  from automacoes a where a.empresa_id = empresa_atual() and pode('ver');
+$$;
+
+-- ---------------------------------------------------------------------
+-- Acesso
+-- ---------------------------------------------------------------------
+revoke execute on function
+  octaplus.proximo_horario_util(timestamptz, uuid), octaplus.credenciais_octadesk(uuid), octaplus.credenciais_octadesk(),
+  octaplus.gravar_jwt(uuid, text, timestamptz), octaplus.gravar_catalogos(uuid, jsonb), octaplus.gravar_manutencao(jsonb)
+from public, anon, authenticated;
+
+-- ===== migrations/20260924000003_octaplus_owner.sql =====
+-- =====================================================================
+-- Octadesk Plus — área Owner (Configurações › Owner) e listas de empresas/usuários.
+-- Só o dono da plataforma cadastra, inativa e apaga empresas e gerencia os usuários de cada uma.
+-- As contas são criadas direto no Auth do Supabase (auth.users + auth.identities), com e-mail já
+-- confirmado: assim o painel não precisa da secret key nem de Edge Function.
+-- =====================================================================
+
+-- Empresas que o usuário logado pode abrir (dono: todas, inclusive inativas)
+create or replace function octaplus.listar_empresas()
+returns table (id uuid, nome text, ativa boolean, cnpj text, telefone text, site text, criada_em timestamptz, nivel text)
+language sql stable security definer set search_path = octaplus, public as $$
+  select e.id, e.nome, e.ativa, e.cnpj, e.telefone, e.site, e.criada_em, 'dono'
+  from empresas e where e_dono()
+  union all
+  select e.id, e.nome, e.ativa, e.cnpj, e.telefone, e.site, e.criada_em, m.nivel
+  from empresas e join membros m on m.empresa_id = e.id
+  where not e_dono() and m.user_id = auth.uid() and m.ativo and e.ativa
+  order by 2;
+$$;
+
+-- Cria (só o dono) ou atualiza a empresa. Quem edita a empresa muda os dados cadastrais; o nome, só o dono.
+-- p = {id?, nome, cnpj?, telefone?, site?}
+create or replace function octaplus.salvar_empresa(p jsonb) returns uuid
+language plpgsql security definer set search_path = octaplus, extensions, public as $$
+declare eid uuid := nullif(p ->> 'id', '')::uuid; v_cnpj text := nullif(regexp_replace(coalesce(p ->> 'cnpj', ''), '\D', '', 'g'), '');
+begin
+  if eid is null then
+    if not e_dono() then raise exception 'sem_permissao'; end if;
+    insert into empresas (nome, cnpj, telefone, site)
+    values (btrim(p ->> 'nome'), v_cnpj, nullif(p ->> 'telefone', ''), nullif(p ->> 'site', ''))
+    returning id into eid;
+    insert into configuracao (empresa_id) values (eid);
+    insert into integracao_octadesk (empresa_id) values (eid);
+    return eid;
+  end if;
+
+  if not pode_na(eid, 'editar') then raise exception 'sem_permissao'; end if;
+  update empresas set
+    nome     = case when e_dono() and coalesce(btrim(p ->> 'nome'), '') <> '' then btrim(p ->> 'nome') else nome end,
+    cnpj     = case when p ? 'cnpj' then v_cnpj else cnpj end,
+    telefone = case when p ? 'telefone' then nullif(p ->> 'telefone', '') else telefone end,
+    site     = case when p ? 'site' then nullif(p ->> 'site', '') else site end
+  where id = eid;
+  return eid;
+end $$;
+
+create or replace function octaplus.definir_empresa_ativa(p_empresa uuid, p_ativa boolean) returns void
+language plpgsql security definer set search_path = octaplus as $$
+begin
+  if not e_dono() then raise exception 'sem_permissao'; end if;
+  update empresas set ativa = p_ativa where id = p_empresa;
+end $$;
+
+-- Apaga a empresa e tudo dela (automações, eventos, envios, integração, vínculos). Exige digitar o nome.
+create or replace function octaplus.apagar_empresa(p_empresa uuid, p_confirmacao text) returns void
+language plpgsql security definer set search_path = octaplus as $$
+begin
+  if not e_dono() then raise exception 'sem_permissao'; end if;
+  if not exists (select 1 from empresas where id = p_empresa and lower(btrim(nome)) = lower(btrim(coalesce(p_confirmacao, '')))) then
+    raise exception 'confirmacao_invalida';
+  end if;
+  delete from empresas where id = p_empresa;
+end $$;
+
+-- Usuários de uma empresa (área Owner)
+create or replace function octaplus.listar_membros(p_empresa uuid)
+returns table (user_id uuid, nome text, email text, nivel text, ativo boolean, criado_em timestamptz, ultimo_acesso timestamptz)
+language plpgsql stable security definer set search_path = octaplus, public as $$
+begin
+  if not e_dono() then return; end if;
+  return query
+    select m.user_id, p.full_name, coalesce(p.email, u.email)::text, m.nivel, m.ativo, m.criado_em, u.last_sign_in_at
+    from membros m
+    left join public.profiles p on p.id = m.user_id
+    left join auth.users u on u.id = m.user_id
+    where m.empresa_id = p_empresa
+    order by coalesce(p.full_name, p.email, u.email);
+end $$;
+
+-- Usuários da empresa atual (aba Usuários, só leitura para quem tem acesso)
+drop function octaplus.listar_usuarios();
+create function octaplus.listar_usuarios()
+returns table (id uuid, nome text, email text, nivel text, ativo boolean)
+language plpgsql stable security definer set search_path = octaplus, public as $$
+begin
+  if not pode('ver') then return; end if;
+  return query
+    select m.user_id, p.full_name, coalesce(p.email, u.email)::text, m.nivel, m.ativo
+    from membros m
+    left join public.profiles p on p.id = m.user_id
+    left join auth.users u on u.id = m.user_id
+    where m.empresa_id = empresa_atual()
+    order by coalesce(p.full_name, p.email, u.email);
+end $$;
+
+-- Cria a conta (ou reaproveita a que já existe com o e-mail) e dá acesso à empresa.
+create or replace function octaplus.criar_usuario(p_empresa uuid, p_email text, p_nome text, p_senha text, p_nivel text default 'ver')
+returns uuid
+language plpgsql security definer set search_path = octaplus, extensions, public as $$
+declare uid uuid; mail text := lower(btrim(coalesce(p_email, '')));
+begin
+  if not e_dono() then raise exception 'sem_permissao'; end if;
+  if mail !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then raise exception 'email_invalido'; end if;
+  if p_nivel not in ('ver', 'editar') then raise exception 'nivel_invalido'; end if;
+  if not exists (select 1 from empresas where id = p_empresa) then raise exception 'nao_encontrado'; end if;
+
+  select id into uid from auth.users where lower(email) = mail;
+  if uid is not null and public.has_role(uid, 'owner') then raise exception 'usuario_e_dono'; end if;
+
+  if uid is null then
+    if length(coalesce(p_senha, '')) < 8 then raise exception 'senha_curta'; end if;
+    uid := gen_random_uuid();
+    insert into auth.users (instance_id, id, aud, role, email, encrypted_password, email_confirmed_at,
+                            raw_app_meta_data, raw_user_meta_data, created_at, updated_at,
+                            confirmation_token, recovery_token, email_change_token_new, email_change)
+    values ('00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated', mail,
+            crypt(p_senha, gen_salt('bf')), now(),
+            '{"provider":"email","providers":["email"]}', jsonb_build_object('full_name', nullif(btrim(p_nome), '')),
+            now(), now(), '', '', '', '');
+    insert into auth.identities (provider_id, user_id, identity_data, provider, last_sign_in_at, created_at, updated_at)
+    values (uid::text, uid, jsonb_build_object('sub', uid::text, 'email', mail, 'email_verified', true),
+            'email', now(), now(), now());
+  end if;
+
+  -- perfil (o gatilho da base já cria; num banco sem ele, cria aqui)
+  insert into public.profiles (id, email, full_name) values (uid, mail, nullif(btrim(p_nome), ''))
+  on conflict (id) do update set full_name = coalesce(public.profiles.full_name, excluded.full_name);
+
+  insert into membros (empresa_id, user_id, nivel, ativo) values (p_empresa, uid, p_nivel, true)
+  on conflict (empresa_id, user_id) do update set nivel = excluded.nivel, ativo = true;
+  return uid;
+end $$;
+
+create or replace function octaplus.definir_nivel(p_empresa uuid, p_usuario uuid, p_nivel text) returns void
+language plpgsql security definer set search_path = octaplus as $$
+begin
+  if not e_dono() then raise exception 'sem_permissao'; end if;
+  if p_nivel not in ('ver', 'editar') then raise exception 'nivel_invalido'; end if;
+  update membros set nivel = p_nivel where empresa_id = p_empresa and user_id = p_usuario;
+end $$;
+
+create or replace function octaplus.definir_membro_ativo(p_empresa uuid, p_usuario uuid, p_ativo boolean) returns void
+language plpgsql security definer set search_path = octaplus as $$
+begin
+  if not e_dono() then raise exception 'sem_permissao'; end if;
+  update membros set ativo = p_ativo where empresa_id = p_empresa and user_id = p_usuario;
+end $$;
+
+-- Nova senha definida pelo dono (a pessoa troca depois em Meu perfil)
+create or replace function octaplus.redefinir_senha(p_usuario uuid, p_senha text) returns void
+language plpgsql security definer set search_path = octaplus, extensions, public as $$
+begin
+  if not e_dono() then raise exception 'sem_permissao'; end if;
+  if length(coalesce(p_senha, '')) < 8 then raise exception 'senha_curta'; end if;
+  if public.has_role(p_usuario, 'owner') then raise exception 'usuario_e_dono'; end if;
+  if not exists (select 1 from membros where user_id = p_usuario) then raise exception 'nao_encontrado'; end if;
+  update auth.users set encrypted_password = crypt(p_senha, gen_salt('bf')), updated_at = now() where id = p_usuario;
+end $$;
+
+-- ---------------------------------------------------------------------
+-- Acesso
+-- ---------------------------------------------------------------------
+revoke execute on function
+  octaplus.listar_empresas(), octaplus.salvar_empresa(jsonb), octaplus.definir_empresa_ativa(uuid, boolean),
+  octaplus.apagar_empresa(uuid, text), octaplus.listar_membros(uuid), octaplus.listar_usuarios(),
+  octaplus.criar_usuario(uuid, text, text, text, text), octaplus.definir_nivel(uuid, uuid, text),
+  octaplus.definir_membro_ativo(uuid, uuid, boolean), octaplus.redefinir_senha(uuid, text)
+from public, anon;
+grant execute on function
+  octaplus.listar_empresas(), octaplus.salvar_empresa(jsonb), octaplus.definir_empresa_ativa(uuid, boolean),
+  octaplus.apagar_empresa(uuid, text), octaplus.listar_membros(uuid), octaplus.listar_usuarios(),
+  octaplus.criar_usuario(uuid, text, text, text, text), octaplus.definir_nivel(uuid, uuid, text),
+  octaplus.definir_membro_ativo(uuid, uuid, boolean), octaplus.redefinir_senha(uuid, text)
+to authenticated;

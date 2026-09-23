@@ -23,11 +23,14 @@ const teste = (nome, ok, detalhe = '') => {
   console.log(`${ok ? 'ok    ' : 'FALHOU'} ${nome}${!ok && detalhe ? `\n       ${detalhe}` : ''}`);
   if (!ok) falhas++;
 };
-const comoUsuario = async (uid) => {
-  await db.exec(`reset role; select set_config('teste.uid', '${uid ?? ''}', false);`);
+// painel: usuário logado + header x-empresa (empresa atual); motor: sem usuário e sem header
+let EMP = null;
+const comoUsuario = async (uid, empresa = EMP) => {
+  const h = empresa ? JSON.stringify({ 'x-empresa': empresa }) : '';
+  await db.exec(`reset role; select set_config('teste.uid', '${uid ?? ''}', false), set_config('request.headers', '${h}', false);`);
   if (uid) await db.exec('set role authenticated');
 };
-const comoMotor = () => db.exec(`reset role; select set_config('teste.uid', '', false);`);
+const comoMotor = () => db.exec(`reset role; select set_config('teste.uid', '', false), set_config('request.headers', '', false);`);
 
 // ---------------------------------------------------------------- estrutura
 await db.exec(fs.readFileSync(path.join(aqui, 'stub-metrics.sql'), 'utf8'));
@@ -35,6 +38,8 @@ for (const f of fs.readdirSync(migrations).sort()) {
   try { await db.exec(fs.readFileSync(path.join(migrations, f), 'utf8')); teste(`migration ${f}`, true); }
   catch (e) { teste(`migration ${f}`, false, e.message); process.exit(1); }
 }
+
+EMP = (await um('select id from octaplus.empresas')).id;
 
 // usuários: dono (owner no metrics) e alguém sem permissão
 const dono = (await um(`insert into auth.users (email) values ('dono@x') returning id`)).id;
@@ -71,15 +76,15 @@ await comoMotor();
 let cred = (await um('select octaplus.credenciais_octadesk() c')).c;
 teste('credenciais para o n8n: chave, barra final removida, catálogo vencido',
   cred.api_key === 'chave-73' && cred.base_url === 'https://o1.api001.octadesk.services' && cred.status === 'validando' && cred.catalogo_vencido === true);
-await q(`select octaplus.gravar_catalogos($1)`, [{ ok: true,
+await q(`select octaplus.gravar_catalogos($2, $1)`, [{ ok: true,
   numeros: [{ id: 'n1', name: 'Oficial', number: '+5511949602880' }],
   templates: [{ id: 't1', name: 'orcamento_de_ontem', status: 'approved', category: 'MARKETING', enable: true,
     components: [{ type: 'BODY', message: 'Oi {{nome}}, e o orçamento?', variables: [{ key: 'nome' }] }] }],
-  grupos: [{ id: 'g-sedex', name: '3 - Atendimento Sedex' }, { id: 'g-tri', name: 'Triagem' }], tags: [{ id: 'tg', name: 'IA' }] }]);
+  grupos: [{ id: 'g-sedex', name: '3 - Atendimento Sedex' }, { id: 'g-tri', name: 'Triagem' }], tags: [{ id: 'tg', name: 'IA' }] }, EMP]);
 const tpl = await um(`select variaveis, corpo from octaplus.octa_templates where id = 't1'`);
 teste('catálogo: template com variáveis e corpo', tpl.variaveis[0] === 'nome' && tpl.corpo.startsWith('Oi'));
 teste('catálogo: integração vira conectada', (await um('select status from octaplus.integracao_octadesk')).status === 'conectado');
-await q(`insert into octaplus.mapa_filas values ('SEDEX', 'g-sedex', 'Sedex'), ('*', 'g-tri', 'Triagem')`);
+await q(`insert into octaplus.mapa_filas (empresa_id, tipo_entrega, grupo_id, rotulo) values ($1, 'SEDEX', 'g-sedex', 'Sedex'), ($1, '*', 'g-tri', 'Triagem')`, [EMP]);
 await q(`update octaplus.configuracao set numero_envio_padrao = '+5511949602880',
   horario_comercial = '{"perDay":{"0":{"enabled":true,"windows":[{"start":"00:00","end":"23:59"}]},"1":{"enabled":true,"windows":[{"start":"00:00","end":"23:59"}]},"2":{"enabled":true,"windows":[{"start":"00:00","end":"23:59"}]},"3":{"enabled":true,"windows":[{"start":"00:00","end":"23:59"}]},"4":{"enabled":true,"windows":[{"start":"00:00","end":"23:59"}]},"5":{"enabled":true,"windows":[{"start":"00:00","end":"23:59"}]},"6":{"enabled":true,"windows":[{"start":"00:00","end":"23:59"}]}}}'`);
 
@@ -207,8 +212,8 @@ const evO = await um(`select * from octaplus.eventos where automacao_id = $1`, [
 teste('Octadesk: evento ligado ao cliente e à conversa', evO?.client_id === cliC && evO?.conversa_id === 'room-9' && evO?.dados.evento.conversa.agente === 'Cristal');
 
 // ---------------------------------------------------------------- atribuição e estatísticas
-const env = await um(`insert into octaplus.envios (automacao_id, client_id, telefone, tipo, room_key, enviado_em)
-  values ($1, $2, '+5531999990000', 'template', 'room-at', now() - interval '3 hours') returning id`, [autOrc, cliC]);
+const env = await um(`insert into octaplus.envios (empresa_id, automacao_id, client_id, telefone, tipo, room_key, enviado_em)
+  values ($3, $1, $2, '+5531999990000', 'template', 'room-at', now() - interval '3 hours') returning id`, [autOrc, cliC, EMP]);
 await q(`insert into public.messages (octadesk_message_id, conversation_octadesk_id, time, sent_by_type) values ('r1', 'room-at', now() - interval '2 hours', 'contact')`);
 await q(`insert into public.sales (client_id, value, tipo_fiscal, numero_unico, created_at) values ($1, 300, 'Venda', 50, now() - interval '1 hour')`, [cliC]);
 await q(`select octaplus.atualizar_atribuicao()`);
@@ -232,22 +237,16 @@ const tel = await um(`select octaplus.normalizar_telefone('11 8888-7777') a, oct
 teste('telefone: nono dígito, fixo e inválido', tel.a === '+5511988887777' && tel.b === '+552133334444' && tel.c === null);
 
 // ---------------------------------------------------------------- empresa e usuários
-await comoMotor();
-const vendas = (await um(`insert into public.access_profiles (name) values ('Vendas') returning id`)).id;
-const vendedora = (await um(`insert into auth.users (email) values ('vendas@x') returning id`)).id;
-await q(`insert into public.access_profile_permissions (profile_id, resource, action) values ($1, 'octaplus', 'ver')`, [vendas]);
-await q(`insert into public.user_roles (user_id, role, profile_id) values ($1, 'viewer', $2)`, [vendedora, vendas]);
-await q(`insert into public.profiles (id, email, full_name) values ($1, 'dono@x', 'Dono'), ($2, 'visitante@x', null), ($3, 'vendas@x', 'Carla')`, [dono, semAcesso, vendedora]);
 await comoUsuario(dono);
-await q(`update octaplus.configuracao set empresa_nome = 'Skytech', empresa_cnpj = '12345678000190' where id`);
-teste('empresa: dados gravados na configuração', (await um(`select empresa_nome n from octaplus.configuracao`)).n === 'Skytech');
+await q(`select octaplus.salvar_empresa($1)`, [{ id: EMP, nome: 'Skytech', cnpj: '12.345.678/0001-90' }]);
+const emp = await um(`select nome, cnpj from octaplus.empresas where id = $1`, [EMP]);
+teste('empresa: dados cadastrais gravados (CNPJ só com dígitos)', emp.nome === 'Skytech' && emp.cnpj === '12345678000190', JSON.stringify(emp));
 erro = '';
-try { await q(`update octaplus.configuracao set empresa_cnpj = '123' where id`); } catch (e) { erro = e.message; }
+try { await q(`select octaplus.salvar_empresa($1)`, [{ id: EMP, cnpj: '123' }]); } catch (e) { erro = e.message; }
 teste('empresa: CNPJ precisa ter 14 dígitos', erro.includes('check'), erro);
+const carla = (await um(`select octaplus.criar_usuario($1, 'Vendas@X.com', 'Carla', 'senha-forte-1', 'ver') id`, [EMP])).id;
 const us = await q(`select * from octaplus.listar_usuarios()`);
-const carla = us.find((u) => u.email === 'vendas@x');
-teste('usuários: lista os do metrics com papel e perfil', us.length === 3 && us.find((u) => u.email === 'dono@x').papel === 'owner'
-  && carla.perfil_acesso === 'Vendas' && carla.pode_ver && !carla.pode_editar, JSON.stringify(us));
+teste('usuários: lista os membros da empresa com o nível', us.length === 1 && us[0].id === carla && us[0].nivel === 'ver' && us[0].email === 'vendas@x.com', JSON.stringify(us));
 await comoUsuario(semAcesso);
 teste('usuários: sem permissão não vê ninguém', (await q(`select * from octaplus.listar_usuarios()`)).length === 0);
 

@@ -20,7 +20,12 @@ const teste = (nome, ok, detalhe = '') => {
 await db.exec(`
   create role anon; create role authenticated; create role service_role;
   create schema auth;
-  create table auth.users (id uuid primary key default gen_random_uuid(), email text, raw_user_meta_data jsonb);
+  create table auth.users (id uuid primary key default gen_random_uuid(), email text, instance_id uuid, aud text, role text,
+    encrypted_password text, email_confirmed_at timestamptz, raw_app_meta_data jsonb, raw_user_meta_data jsonb,
+    created_at timestamptz, updated_at timestamptz, last_sign_in_at timestamptz, confirmation_token text, recovery_token text,
+    email_change_token_new text, email_change text);
+  create table auth.identities (id uuid primary key default gen_random_uuid(), provider_id text not null, user_id uuid not null,
+    identity_data jsonb not null, provider text not null, last_sign_in_at timestamptz, created_at timestamptz, updated_at timestamptz);
   -- grants padrão do Supabase: tudo que nasce no public já sai com grant para anon e authenticated
   grant usage on schema public to anon, authenticated;
   alter default privileges in schema public grant all on tables to anon, authenticated;
@@ -54,7 +59,7 @@ teste('projeto próprio: perfil criado com nome', (await um(`select full_name n 
 
 const pode = async (uid) => {
   await db.exec(`reset role; select set_config('teste.uid', '${uid}', false); set role authenticated`);
-  return (await um(`select octaplus.pode('editar') p`)).p;
+  return (await um(`select octaplus.pode_na((select id from octaplus.empresas limit 1), 'editar') p`)).p;
 };
 teste('projeto próprio: dono edita o octaplus', await pode(primeiro) === true);
 teste('projeto próprio: outro usuário não edita', await pode(segundo) === false);
