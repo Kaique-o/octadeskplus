@@ -1,11 +1,12 @@
-import { Workflow, type LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import type { Area } from '../lib/permissao';
 
 export interface NavItem {
   chave: string;
   to: string;
   end?: boolean;
-  icone: LucideIcon;
+  /** sem ícone, o item guarda o mesmo espaço para o texto ficar alinhado */
+  icone?: LucideIcon;
   label: string;
   /** some do menu quando o perfil não vê esta área */
   area: Area;
@@ -14,7 +15,7 @@ export interface NavItem {
 /** Itens do menu principal. A sidebar só mapeia esta lista.
  *  A tela inicial não entra aqui: chega-se a ela pelo logo. */
 export const NAV: NavItem[] = [
-  { chave: 'automacoes', to: '/app/automacoes', icone: Workflow, label: 'Automações', area: 'automacoes' },
+  { chave: 'automacoes', to: '/app/automacoes', label: 'Automações', area: 'automacoes' },
 ];
 
 /** Ajuda por tela. Rota sem verbete deixa o botão "Ajuda" desabilitado, nunca escondido. */

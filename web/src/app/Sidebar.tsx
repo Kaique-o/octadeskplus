@@ -35,7 +35,7 @@ export default function Sidebar({ usuario, onAjuda, onSair, onNavegar, onVoltar 
         {NAV.filter((i) => nivelDe(permissoes, i.area) !== 'nenhum').map(({ chave, to, end, icone: Icone, label }) => (
           <NavLink key={chave} to={to} end={end} onClick={onNavegar}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
-            <Icone size={20} strokeWidth={1.8} />
+            {Icone ? <Icone size={20} strokeWidth={1.8} /> : <span className="inline-block h-5 w-5 shrink-0" aria-hidden />}
             {label}
           </NavLink>
         ))}
