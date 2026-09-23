@@ -61,11 +61,12 @@ const TONS: Record<Tom, { card: string; quadro: string; icone: string; numero: s
 function CardNumero({ label, valor, sub, icone: Icone, tom }: Card) {
   const t = TONS[tom];
   return (
-    <div className={`rounded-2xl border p-5 shadow-sm ${t.card}`}>
+    // linhas fixas (ícone, rótulo, número, legenda): todos os cards da grade ficam alinhados
+    <div className={`grid grid-rows-[auto_auto_auto_1.25rem] rounded-2xl border p-5 shadow-sm ${t.card}`}>
       <span className={`grid h-11 w-11 place-items-center rounded-xl ${t.quadro}`}><Icone className={`h-5 w-5 ${t.icone}`} strokeWidth={1.8} /></span>
-      <p className="mt-4 text-sm text-muted">{label}</p>
-      <p className={`mt-1 font-title text-4xl font-bold tabular-nums tracking-tight ${t.numero}`}>{valor}</p>
-      {sub && <p className={`mt-1.5 text-sm ${t.sub}`}>{sub}</p>}
+      <p className="mt-4 truncate text-sm text-muted" title={label}>{label}</p>
+      <p className={`mt-1 font-title text-4xl font-bold leading-tight tabular-nums tracking-tight ${t.numero}`}>{valor}</p>
+      <p className={`mt-1 truncate text-sm ${t.sub}`} title={sub}>{sub}</p>
     </div>
   );
 }
@@ -115,7 +116,7 @@ export default function Stats() {
     { label: 'Mensagens enviadas', valor: t.envios.toLocaleString('pt-BR'), icone: Mail, tom: 'marinho' },
     { label: 'Responderam', valor: `${taxa}%`, sub: `${t.respostas.toLocaleString('pt-BR')} clientes`, icone: Users, tom: 'azul' },
     { label: 'Compraram em 7 dias', valor: t.compras.toLocaleString('pt-BR'), sub: brl(t.valor), icone: ShoppingCart, tom: 'verde' },
-    { label: 'Sem envio', valor: t.semEnvio.toLocaleString('pt-BR'), sub: 'regras e conversas abertas', icone: Clock, tom: 'ambar' },
+    { label: 'Sem envio', valor: t.semEnvio.toLocaleString('pt-BR'), sub: 'regras e conversas', icone: Clock, tom: 'ambar' },
     { label: 'Erros', valor: t.erros.toLocaleString('pt-BR'), icone: AlertTriangle, tom: 'vermelho' },
   ];
 
@@ -132,7 +133,7 @@ export default function Stats() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         {cards.map((c) => <CardNumero key={c.label} {...c} />)}
       </div>
 
