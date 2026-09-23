@@ -25,6 +25,7 @@ export default function AppLayout() {
   const usuario = {
     nome: profile?.full_name || session?.user.email || 'Usuário',
     cargo: atual?.perfil ?? '',
+    foto: profile?.foto,
   };
 
   return (

@@ -4,7 +4,7 @@ import { supabase } from './supabase';
 import { DEMO, demoSession } from './demo';
 
 // Usuários: auth.users + public.profiles. Dono da plataforma = papel 'owner' em public.user_roles.
-export interface Profile { id: string; email: string; full_name: string | null }
+export interface Profile { id: string; email: string; full_name: string | null; foto?: string | null }
 
 interface SessionState {
   session: Session | null;
@@ -37,11 +37,13 @@ function RealSessionProvider({ children }: { children: ReactNode }) {
   const load = useCallback(async (s: Session | null) => {
     setSession(s);
     if (!s) { setProfile(null); setEDono(false); setLoading(false); return; }
-    const [{ data: p }, { data: dono }] = await Promise.all([
+    const [{ data: p }, { data: dono }, { data: f }] = await Promise.all([
       supabase.schema('public').from('profiles').select('id, email, full_name').eq('id', s.user.id).maybeSingle(),
       supabase.rpc('e_dono'),
+      supabase.from('fotos_usuario').select('foto').eq('user_id', s.user.id).maybeSingle(),
     ]);
-    setProfile((p as Profile) ?? { id: s.user.id, email: s.user.email ?? '', full_name: null });
+    const foto = (f as { foto: string } | null)?.foto ?? null;
+    setProfile({ ...((p as Profile) ?? { id: s.user.id, email: s.user.email ?? '', full_name: null }), foto });
     setEDono(Boolean(dono));
     setLoading(false);
   }, []);

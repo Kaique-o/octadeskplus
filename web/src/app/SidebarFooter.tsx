@@ -9,6 +9,7 @@ import { destinoConfiguracoes } from './SettingsTabs';
 export interface FooterUsuario {
   nome: string;
   cargo: string;
+  foto?: string | null;
 }
 
 interface Props {
@@ -19,7 +20,7 @@ interface Props {
   onNavegar: () => void;
 }
 
-const iniciais = (nome: string) => {
+export const iniciais = (nome: string) => {
   const partes = nome.trim().split(/\s+/).filter(Boolean);
   if (!partes.length) return 'U';
   const primeira = partes[0][0];
@@ -66,7 +67,7 @@ export default function SidebarFooter({ usuario, onAjuda, onSair, onNavegar }: P
         onClick={() => setAberto(!aberto)}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setAberto(!aberto); } }}
       >
-        <span className="avatar">{iniciais(usuario.nome)}</span>
+        <span className="avatar">{usuario.foto ? <img src={usuario.foto} alt="" /> : iniciais(usuario.nome)}</span>
         <span className="user-meta">
           <strong>{usuario.nome}</strong>
           <span>{atual ? `${usuario.cargo} · ${atual.nome}` : usuario.cargo}</span>

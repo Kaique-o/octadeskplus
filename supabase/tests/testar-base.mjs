@@ -76,6 +76,22 @@ await db.exec(`select set_config('teste.uid', '${segundo}', false); set role aut
 const trocaEmail = await db.query(`update public.profiles set email = 'x@x' where id = '${segundo}'`).then(() => true, () => false);
 teste('perfil: e-mail não muda pelo navegador', !trocaEmail);
 
+// foto do próprio perfil: cada um grava e lê só a sua
+const foto = 'data:image/webp;base64,' + 'B'.repeat(100);
+await db.exec(`reset role; select set_config('teste.uid', '${segundo}', false); set role authenticated`);
+await db.query('select octaplus.salvar_minha_foto($1)', [foto]);
+const minha = (await db.query('select foto from octaplus.fotos_usuario')).rows;
+teste('foto: salva a própria e lê só a sua', minha.length === 1 && minha[0].foto === foto, JSON.stringify(minha.length));
+const fotoRuim = await db.query(`select octaplus.salvar_minha_foto('<script>')`).then(() => '', (e) => e.message);
+teste('foto: só aceita imagem em base64', fotoRuim.includes('foto_invalida'), fotoRuim);
+const direto = await db.query(`insert into octaplus.fotos_usuario (user_id, foto) values ($1, $2)`, [primeiro, foto]).then(() => true, () => false);
+teste('foto: não grava a foto de outra pessoa', !direto);
+await db.exec(`reset role; select set_config('teste.uid', '${primeiro}', false); set role authenticated`);
+teste('foto: um usuário não vê a foto do outro', (await db.query('select * from octaplus.fotos_usuario')).rows.length === 0);
+await db.exec(`reset role; select set_config('teste.uid', '${segundo}', false); set role authenticated`);
+await db.query(`select octaplus.salvar_minha_foto('')`);
+teste('foto: vazio remove', (await db.query('select * from octaplus.fotos_usuario')).rows.length === 0);
+
 // authenticated tem grant nas tabelas do public (padrão do Supabase); quem barra é o RLS
 await db.exec(`reset role; insert into public.clients (name) values ('Ana'); set role authenticated`);
 const linhas = (await db.query('select * from public.clients')).rows.length;

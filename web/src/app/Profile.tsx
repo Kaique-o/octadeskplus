@@ -4,6 +4,8 @@ import { errorMessage, supabase } from '../lib/supabase';
 import { useSession } from '../lib/session';
 import { useEmpresas } from '../lib/empresas';
 import { AREAS, NIVEIS, nivelDe } from '../lib/permissao';
+import FotoEditavel from '../components/FotoEditavel';
+import { iniciais as iniciaisDe } from './SidebarFooter';
 
 /** Dados do próprio usuário. Grava em public.profiles (no banco do metrics, muda lá também). */
 export default function Profile() {
@@ -16,6 +18,13 @@ export default function Profile() {
 
   useEffect(() => { if (profile) setNome(profile.full_name ?? ''); }, [profile]);
   const flash = (kind: 'success' | 'error', text: string) => { setAviso({ kind, text }); setTimeout(() => setAviso(null), 4000); };
+
+  // foto do próprio perfil (octaplus.fotos_usuario); recarrega a sessão para o card do menu mudar junto
+  async function salvarFoto(foto: string | null) {
+    const { error } = await supabase.rpc('salvar_minha_foto', { p_foto: foto ?? '' });
+    if (!error) { await refresh(); flash('success', foto ? 'Foto atualizada.' : 'Foto removida.'); }
+    return error;
+  }
 
   async function salvar() {
     const { error } = await supabase.schema('public').from('profiles').update({ full_name: nome.trim() || null }).eq('id', session!.user.id);
@@ -42,6 +51,12 @@ export default function Profile() {
 
       <section className="card max-w-xl p-5">
         <h2 className="font-semibold">Meus dados</h2>
+        <div className="mt-4 flex items-center gap-4">
+          <FotoEditavel foto={profile?.foto} alt="Sua foto" tamanho="xl" redonda titulo="Sua foto"
+            classeVazio="bg-ink text-white" vazio={<span className="font-title text-xl font-bold">{iniciaisDe(nome || session?.user.email || '')}</span>}
+            ajuda="Aparece no seu card do menu." onSalvar={salvarFoto} />
+          <p className="text-sm text-muted">Passe o mouse na foto e clique no lápis para trocar.</p>
+        </div>
         <div className="mt-4 space-y-3">
           <div><label className="label">Nome</label><input className="input" value={nome} onChange={(e) => setNome(e.target.value)} /></div>
           <div>

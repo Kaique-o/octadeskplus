@@ -29,7 +29,7 @@ export default function SettingsTabs() {
   return (
     <>
       <PageHeader title="Configurações" subtitle="Octadesk, dados da empresa, usuários, chaves de API e quem não recebe mensagens." />
-      <div className="mb-6 flex gap-1 overflow-x-auto border-b border-line">
+      <div className="mb-6 flex flex-wrap gap-1 border-b border-line">
         {abas.map((a) => (
           <NavLink key={a.to} to={a.to} end={a.end}
             className={({ isActive }) => `-mb-px whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition ${isActive ? 'border-brand text-brand' : 'border-transparent text-muted hover:text-ink'}`}>
