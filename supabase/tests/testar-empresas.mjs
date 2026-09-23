@@ -54,6 +54,16 @@ teste('empresa: editar só o fuso mantém o resto', dadosC.fuso === 'America/Sao
 await como(dono);
 teste('lista de empresas traz o fuso', (await q('select fuso from octaplus.listar_empresas() where id = $1', [C]))[0]?.fuso === 'America/Sao_Paulo');
 teste('empresa: fuso inválido é recusado', (await falha(`select octaplus.salvar_empresa($1)`, [{ id: C, fuso: 'Lua/Base' }])).includes('fuso_invalido'));
+// endereço de cobrança
+const endereco = { cep: '01310-100', logradouro: 'Av. Paulista', numero: '1000', complemento: 'sala 5', bairro: 'Bela Vista', cidade: 'São Paulo', uf: 'sp' };
+await q(`select octaplus.salvar_empresa($1)`, [{ id: C, endereco_cobranca: endereco }]);
+const endSalvo = (await q('select endereco_cobranca e from octaplus.listar_empresas() where id = $1', [C]))[0]?.e;
+teste('cobrança: endereço salvo com CEP só em dígitos e UF maiúscula', endSalvo?.cep === '01310100' && endSalvo?.uf === 'SP' && endSalvo?.cidade === 'São Paulo', JSON.stringify(endSalvo));
+teste('cobrança: CEP precisa ter 8 dígitos', (await falha(`select octaplus.salvar_empresa($1)`, [{ id: C, endereco_cobranca: { ...endereco, cep: '123' } }])).includes('cep_invalido'));
+teste('cobrança: UF precisa ser válida', (await falha(`select octaplus.salvar_empresa($1)`, [{ id: C, endereco_cobranca: { ...endereco, uf: 'XX' } }])).includes('uf_invalida'));
+await q(`select octaplus.salvar_empresa($1)`, [{ id: C, cnpj: '12345678000190' }]);
+teste('cobrança: editar outro campo mantém o endereço', (await q('select endereco_cobranca e from octaplus.listar_empresas() where id = $1', [C]))[0]?.e?.cep === '01310100');
+
 // logo da empresa (base64)
 const logo = 'data:image/webp;base64,' + 'A'.repeat(200);
 await q(`select octaplus.salvar_empresa($1)`, [{ id: C, logo }]);

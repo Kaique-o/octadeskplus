@@ -67,6 +67,8 @@ export function errorMessage(e: unknown): string {
     integracao_indisponivel: 'Essa integração ainda não está disponível.',
     url_invalida: 'Informe uma URL começando com https://.',
     chave_obrigatoria: 'Informe a chave de acesso.',
+    cep_invalido: 'O CEP precisa ter 8 dígitos.',
+    uf_invalida: 'Escolha uma UF válida.',
     voce_mesmo: 'Você não pode alterar o seu próprio acesso por aqui.',
     usuario_em_outras_empresas: 'Essa pessoa também usa outras empresas: só o dono da plataforma pode trocar a senha dela.',
     'Invalid login credentials': 'E-mail ou senha incorretos.',
