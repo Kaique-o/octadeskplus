@@ -107,22 +107,34 @@ export default function Owner() {
 
 function NovaEmpresa({ onClose, onCriada }: { onClose: () => void; onCriada: (id: string, nome: string) => void }) {
   const [dados, setDados] = useState<DadosEmpresa>(dadosIniciais());
+  const [master, setMaster] = useState({ nome: '', email: '', senha: '' });
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState('');
   async function criar() {
     const invalido = validarEmpresa(dados);
     if (invalido) return setErro(invalido);
+    if (!master.email.trim()) return setErro('Informe o e-mail do usuário Master.');
     setBusy(true); setErro('');
-    const { data, error } = await supabase.rpc('salvar_empresa', { p: paraSalvar(dados) });
+    const { data, error } = await supabase.rpc('salvar_empresa', { p: { ...paraSalvar(dados), master } });
     setBusy(false);
     if (error) return setErro(errorMessage(error));
     onCriada(data as string, dados.nome.trim());
   }
   return (
     <Modal open largo title="Nova empresa" onClose={onClose}
-      footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button className="btn-primary" disabled={busy || !dados.nome.trim()} onClick={criar}>{busy ? <Spinner /> : 'Criar empresa'}</button></>}>
+      footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button className="btn-primary" disabled={busy || !dados.nome.trim() || !master.email.trim()} onClick={criar}>{busy ? <Spinner /> : 'Criar empresa'}</button></>}>
       {erro && <div className="mb-3"><Alert>{erro}</Alert></div>}
       <CamposEmpresa dados={dados} onChange={setDados} autoFocus />
+      <div className="mt-5 rounded-xl border border-line p-4">
+        <h3 className="font-semibold">Usuário Master</h3>
+        <p className="mt-0.5 text-xs text-muted">Administrador da empresa: tem acesso a tudo nela e gerencia os usuários. Toda empresa precisa de pelo menos um.</p>
+        <div className="mt-3 grid gap-3 md:grid-cols-3">
+          <div><label className="label">Nome</label><input className="input" value={master.nome} onChange={(e) => setMaster({ ...master, nome: e.target.value })} placeholder="Nome da pessoa" /></div>
+          <div><label className="label">E-mail</label><input className="input" type="email" value={master.email} onChange={(e) => setMaster({ ...master, email: e.target.value })} placeholder="pessoa@empresa.com" /></div>
+          <div><label className="label">Senha provisória</label><input className="input" type="text" autoComplete="off" value={master.senha} onChange={(e) => setMaster({ ...master, senha: e.target.value })} placeholder="Mínimo de 8 caracteres" /></div>
+        </div>
+        <p className="mt-2 text-xs text-muted">Se o e-mail já tem conta, a senha atual continua valendo e a senha provisória é ignorada.</p>
+      </div>
       <p className="mt-3 text-xs text-muted">O fuso define o horário comercial das regras de envio. A empresa nasce vazia: integração, automações, números e chaves de API são só dela.</p>
     </Modal>
   );

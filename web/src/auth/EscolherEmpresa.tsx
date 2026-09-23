@@ -17,6 +17,7 @@ export default function EscolherEmpresa() {
   const { eDono } = useSession();
   const { empresas, carregando, escolher, recarregar } = useEmpresas();
   const [nome, setNome] = useState('');
+  const [master, setMaster] = useState({ nome: '', email: '', senha: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const ultima = empresaGuardada();
@@ -29,7 +30,7 @@ export default function EscolherEmpresa() {
   async function criarPrimeira(e: FormEvent) {
     e.preventDefault();
     setBusy(true); setError('');
-    const { data, error } = await supabase.rpc('salvar_empresa', { p: { nome: nome.trim() } });
+    const { data, error } = await supabase.rpc('salvar_empresa', { p: { nome: nome.trim(), master } });
     setBusy(false);
     if (error) return setError(errorMessage(error));
     await recarregar();
@@ -44,6 +45,10 @@ export default function EscolherEmpresa() {
         <form onSubmit={criarPrimeira} className="space-y-4">
           {error && <Alert>{error}</Alert>}
           <div><label className="label">Nome da empresa</label><input className="input" required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: SkyTech" /></div>
+          <p className="pt-1 text-sm font-semibold">Usuário Master <span className="font-normal text-muted">(administrador da empresa)</span></p>
+          <div><label className="label">Nome</label><input className="input" value={master.nome} onChange={(e) => setMaster({ ...master, nome: e.target.value })} placeholder="Nome da pessoa" /></div>
+          <div><label className="label">E-mail</label><input className="input" type="email" required value={master.email} onChange={(e) => setMaster({ ...master, email: e.target.value })} placeholder="pessoa@empresa.com" /></div>
+          <div><label className="label">Senha provisória</label><input className="input" type="text" autoComplete="off" required minLength={8} value={master.senha} onChange={(e) => setMaster({ ...master, senha: e.target.value })} placeholder="Mínimo de 8 caracteres" /></div>
           <button className="btn-primary w-full py-3" disabled={busy}>{busy ? <Spinner /> : 'Criar e entrar'}</button>
         </form>
       </AuthShell>

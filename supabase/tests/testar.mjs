@@ -244,10 +244,10 @@ teste('empresa: dados cadastrais gravados (CNPJ só com dígitos)', emp.nome ===
 erro = '';
 try { await q(`select octaplus.salvar_empresa($1)`, [{ id: EMP, cnpj: '123' }]); } catch (e) { erro = e.message; }
 teste('empresa: CNPJ precisa ter 14 dígitos', erro.includes('check'), erro);
-const soVe = (await um(`select id from octaplus.perfis where empresa_id = $1 and nome = 'Só vê'`, [EMP])).id;
+const soVe = (await um(`select id from octaplus.perfis where empresa_id = $1 and nome = 'Observador'`, [EMP])).id;
 const carla = (await um(`select octaplus.criar_usuario($1, 'Vendas@X.com', 'Carla', 'senha-forte-1', $2) id`, [EMP, soVe])).id;
 const us = await q(`select * from octaplus.listar_usuarios()`);
-teste('usuários: lista os membros da empresa com o perfil', us.length === 1 && us[0].user_id === carla && us[0].perfil === 'Só vê' && us[0].email === 'vendas@x.com', JSON.stringify(us));
+teste('usuários: lista os membros da empresa com o perfil', us.length === 1 && us[0].user_id === carla && us[0].perfil === 'Observador' && us[0].email === 'vendas@x.com', JSON.stringify(us));
 await comoUsuario(semAcesso);
 teste('usuários: sem permissão não vê ninguém', (await q(`select * from octaplus.listar_usuarios()`)).length === 0);
 

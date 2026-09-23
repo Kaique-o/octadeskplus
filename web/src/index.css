@@ -34,3 +34,25 @@ body { @apply bg-white text-ink antialiased; }
 
 @keyframes pop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 .animate-pop { animation: pop .5s ease both; }
+
+/* Placa do cargo: Owner dourada, Master prateada (brilho passando devagar); demais cargos, card branco */
+.placa { position: relative; overflow: hidden; isolation: isolate; }
+.placa-ouro {
+  background: linear-gradient(135deg, #fff3c4 0%, #f3d27a 22%, #d9a73a 45%, #f8e39a 60%, #c8922b 82%, #f1d27c 100%);
+  border: 1px solid #d4a53c;
+  color: #5c3d06;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .6), 0 6px 18px -8px rgb(160 110 20 / .55);
+}
+.placa-prata {
+  background: linear-gradient(135deg, #fbfcfd 0%, #dfe3e8 22%, #b7bec8 45%, #eef1f4 60%, #a4acb7 82%, #e3e7ec 100%);
+  border: 1px solid #b3bac4;
+  color: #2f3742;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / .7), 0 6px 18px -8px rgb(80 90 105 / .45);
+}
+.placa-ouro::after, .placa-prata::after {
+  content: ""; position: absolute; inset: -50% auto -50% -60%; width: 40%; z-index: -1;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / .55), transparent);
+  transform: skewX(-20deg); animation: placa-brilho 4.5s ease-in-out infinite;
+}
+@keyframes placa-brilho { 0%, 55% { left: -60%; } 100% { left: 130%; } }
+@media (prefers-reduced-motion: reduce) { .placa-ouro::after, .placa-prata::after { animation: none; display: none; } }

@@ -5,12 +5,13 @@ import { errorMessage, supabase } from '../lib/supabase';
 import { useSession } from '../lib/session';
 import { baixarCsv } from '../lib/csv';
 import { AREAS, NIVEIS, nivelDe, type Nivel, type Permissoes } from '../lib/permissao';
+import PlacaCargo from '../components/PlacaCargo';
 
 interface Membro {
-  user_id: string; nome: string | null; email: string; perfil_id: string; perfil: string; ativo: boolean;
+  user_id: string; nome: string | null; email: string; perfil_id: string; perfil: string; master: boolean; ativo: boolean;
   criado_em: string; ultimo_acesso: string | null; outras_empresas: number;
 }
-interface Perfil { id: string; nome: string; permissoes: Permissoes; usuarios: number }
+interface Perfil { id: string; nome: string; permissoes: Permissoes; fixo: boolean; usuarios: number }
 interface EmpresaAlvo { id: string; nome: string }
 
 type Janela =
@@ -103,7 +104,7 @@ export default function GestaoUsuarios({ empresa, podeGerenciar }: { empresa: Em
                       <p className="font-medium">{nomeDe(m)}{eu(m) && <span className="ml-2 text-xs font-normal text-muted">(você)</span>}</p>
                       {m.nome && <p className="text-xs text-muted">{m.email}</p>}
                     </td>
-                    <td className="px-4 py-3"><span className="chip bg-brand-soft text-blue-800">{m.perfil}</span></td>
+                    <td className="px-4 py-3"><PlacaCargo pequena tipo={m.master ? 'master' : 'comum'} nome={m.perfil} /></td>
                     <td className="px-4 py-3 text-muted">{quando(m.ultimo_acesso)}</td>
                     <td className="px-4 py-3">
                       {podeGerenciar && !eu(m)
@@ -194,7 +195,7 @@ function SeletorPerfil({ perfis, valor, onChange }: { perfis: Perfil[]; valor: s
 }
 
 function NovoUsuario({ empresa, perfis, onClose, onFeito }: Props & { perfis: Perfil[] }) {
-  const [form, setForm] = useState({ nome: '', email: '', senha: '', perfil: perfis.find((p) => p.nome === 'Só vê')?.id ?? perfis[0]?.id ?? '' });
+  const [form, setForm] = useState({ nome: '', email: '', senha: '', perfil: perfis.find((p) => p.nome === 'Observador')?.id ?? perfis.find((p) => !p.fixo)?.id ?? perfis[0]?.id ?? '' });
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState('');
   async function criar() {
@@ -329,7 +330,7 @@ function PerfisDeAcesso({ empresa, perfis, onClose, onMudou }: { empresa: Empres
   return (
     <Modal open largo title={`Perfis de acesso de ${empresa.nome}`} onClose={onClose}
       footer={<button className="btn-primary" onClick={() => setEditando('novo')}><Plus className="h-4 w-4" />Novo perfil</button>}>
-      <p className="mb-3 text-sm text-muted">Cada perfil diz o que o usuário vê e edita em cada área do painel. Quem tem “Usuários: edita” também gerencia usuários e perfis desta empresa.</p>
+      <p className="mb-3 text-sm text-muted">Cada perfil diz o que o usuário vê e edita em cada área do painel. O Master é o administrador da empresa: é fixo, tem acesso a tudo e a empresa sempre mantém pelo menos um. Quem tem “Usuários: edita” também gerencia usuários e perfis.</p>
       {aviso && <div className="mb-3"><Alert kind={aviso.kind}>{aviso.text}</Alert></div>}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
@@ -344,14 +345,16 @@ function PerfisDeAcesso({ empresa, perfis, onClose, onMudou }: { empresa: Empres
           <tbody className="divide-y divide-line">
             {perfis.map((p) => (
               <tr key={p.id}>
-                <td className="py-2 pr-3 font-medium">{p.nome}</td>
+                <td className="py-2 pr-3"><PlacaCargo pequena tipo={p.fixo ? 'master' : 'comum'} nome={p.nome} /></td>
                 {AREAS.map((a) => <td key={a.chave} className="py-2 pr-3"><NivelChip nivel={nivelDe(p.permissoes, a.chave)} /></td>)}
                 <td className="py-2 pr-3 tabular-nums">{p.usuarios}</td>
                 <td className="py-2 text-right">
-                  <MenuAcoes rotulo={`Ações do perfil ${p.nome}`} itens={[
-                    { label: 'Editar', icone: <Pencil className="h-4 w-4" />, onClick: () => setEditando(p) },
-                    { label: 'Excluir', icone: <Trash2 className="h-4 w-4" />, perigo: true, onClick: () => setExcluindo(p) },
-                  ]} />
+                  {p.fixo ? <span className="text-xs text-muted" title="Administrador da empresa: tem acesso a tudo e não pode ser alterado">fixo</span> : (
+                    <MenuAcoes rotulo={`Ações do perfil ${p.nome}`} itens={[
+                      { label: 'Editar', icone: <Pencil className="h-4 w-4" />, onClick: () => setEditando(p) },
+                      { label: 'Excluir', icone: <Trash2 className="h-4 w-4" />, perigo: true, onClick: () => setExcluindo(p) },
+                    ]} />
+                  )}
                 </td>
               </tr>
             ))}

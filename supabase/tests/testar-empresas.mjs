@@ -34,14 +34,14 @@ const A = (await um('select id from octaplus.empresas')).id;
 
 // ---------------------------------------------------------------- área Owner
 await como(dono);
-const B = (await um(`select octaplus.salvar_empresa('{"nome":"Skyline"}') id`)).id;
+const B = (await um(`select octaplus.salvar_empresa($1) id`, [{ nome: 'Skyline', master: { nome: 'Mestre B', email: 'mestreb@x.com', senha: 'senha-mestre-b' } }])).id;
 await motor();
 teste('owner: cria empresa já com configuração e integração', (await um(`select
   (select count(*) from octaplus.configuracao where empresa_id = $1)::int c,
   (select count(*) from octaplus.integracao_octadesk where empresa_id = $1)::int i`, [B])).c === 1);
 // criar e editar com os dados cadastrais e o fuso
 await como(dono);
-const C = (await um(`select octaplus.salvar_empresa($1) id`, [{ nome: 'Sky Norte', cnpj: '12.345.678/0001-90', telefone: '(92) 3333-4444', site: 'https://norte.com', fuso: 'America/Manaus' }])).id;
+const C = (await um(`select octaplus.salvar_empresa($1) id`, [{ nome: 'Sky Norte', cnpj: '12.345.678/0001-90', telefone: '(92) 3333-4444', site: 'https://norte.com', fuso: 'America/Manaus', master: { email: 'mestrec@x.com', senha: 'senha-mestre-c' } }])).id;
 await motor();
 let dadosC = await um(`select e.cnpj, e.telefone, e.site, c.fuso from octaplus.empresas e join octaplus.configuracao c on c.empresa_id = e.id where e.id = $1`, [C]);
 teste('owner: nova empresa já nasce com CNPJ, telefone, site e fuso', dadosC.cnpj === '12345678000190' && dadosC.telefone === '(92) 3333-4444'
@@ -69,8 +69,8 @@ await motor();
 
 // perfis padrão de cada empresa
 const perfil = async (emp, nome) => (await um('select id from octaplus.perfis where empresa_id = $1 and nome = $2', [emp, nome])).id;
-const [ADMIN_A, EDITA_A, SOVE_A, EDITA_B, SOVE_B] = [await perfil(A, 'Administrador'), await perfil(A, 'Edita'), await perfil(A, 'Só vê'), await perfil(B, 'Edita'), await perfil(B, 'Só vê')];
-teste('perfis: toda empresa nasce com Administrador, Edita e Só vê', Boolean(ADMIN_A && EDITA_A && SOVE_A && EDITA_B && SOVE_B));
+const [ADMIN_A, EDITA_A, SOVE_A, EDITA_B, SOVE_B] = [await perfil(A, 'Master'), await perfil(A, 'Editor'), await perfil(A, 'Observador'), await perfil(B, 'Editor'), await perfil(B, 'Observador')];
+teste('perfis: toda empresa nasce com Master, Editor e Observador', Boolean(ADMIN_A && EDITA_A && SOVE_A && EDITA_B && SOVE_B));
 
 await como(dono);
 const uA = (await um(`select octaplus.criar_usuario($1, 'ana@x.com', 'Ana', 'senha-da-ana', $2) id`, [A, EDITA_A])).id;
@@ -91,12 +91,12 @@ teste('owner: redefine a senha (mesmo de quem está em outras empresas)', (await
 await como(dono);
 teste('owner: não redefine a senha do dono', (await falha(`select octaplus.redefinir_senha($1, $2, 'outra-senha-1')`, [A, dono])).includes('usuario_e_dono'));
 teste('owner: lista as duas empresas', (await q('select * from octaplus.listar_empresas()')).length === 2);
-teste('owner: lista os membros de uma empresa', (await q('select * from octaplus.listar_membros($1)', [B])).length === 2);
+teste('owner: lista os membros de uma empresa (master + 2)', (await q('select * from octaplus.listar_membros($1)', [B])).length === 3);
 
 // editar e apagar usuário (na empresa)
 await q(`select octaplus.editar_membro($1, $2, 'Bia Souza', $3)`, [B, uB, EDITA_B]);
 const bia = (await q('select * from octaplus.listar_membros($1)', [B])).find((m) => m.user_id === uB);
-teste('owner: edita nome e perfil do usuário', bia.nome === 'Bia Souza' && bia.perfil === 'Edita', JSON.stringify(bia));
+teste('owner: edita nome e perfil do usuário', bia.nome === 'Bia Souza' && bia.perfil === 'Editor', JSON.stringify(bia));
 await q(`select octaplus.editar_membro($1, $2, 'Bia', $3)`, [B, uB, SOVE_B]);
 teste('owner: não edita o dono', (await falha(`select octaplus.editar_membro($1, $2, 'x', $3)`, [B, dono, SOVE_B])).includes('usuario_e_dono'));
 const extra = (await um(`select octaplus.criar_usuario($1, 'saiu@x.com', 'Saiu', 'senha-longa-1', $2) id`, [B, EDITA_B])).id;
@@ -123,8 +123,8 @@ for (const [nome, sql, params] of [
 await como(uA, A);
 teste('perfil Edita: vê os usuários da empresa', (await q('select * from octaplus.listar_membros($1)', [A])).length === 1);
 teste('perfil Edita: não vê usuários de outra empresa', (await q('select * from octaplus.listar_membros($1)', [B])).length === 0);
-const minhas = await q('select id, perfil, permissoes from octaplus.listar_empresas()');
-teste('não-owner: só vê as empresas em que tem vínculo ativo, com o perfil', minhas.length === 1 && minhas[0].id === A && minhas[0].perfil === 'Edita'
+const minhas = await q('select id, perfil, perfil_tipo, permissoes from octaplus.listar_empresas()');
+teste('não-owner: só vê as empresas em que tem vínculo ativo, com o perfil', minhas.length === 1 && minhas[0].id === A && minhas[0].perfil === 'Editor' && minhas[0].perfil_tipo === 'comum'
   && minhas[0].permissoes.usuarios === 'ver' && minhas[0].permissoes.automacoes === 'editar', JSON.stringify(minhas));
 
 // ---------------------------------------------------------------- gestão delegada e perfis
@@ -148,6 +148,24 @@ teste('perfil: em uso não pode ser apagado', (await falha(`select octaplus.apag
 const livre = (await um(`select octaplus.salvar_perfil($1, '{"nome":"Temporário"}') id`, [A])).id;
 await q(`select octaplus.apagar_perfil($1, $2)`, [A, livre]);
 teste('perfil: sem usuários pode ser apagado', !(await q('select * from octaplus.listar_perfis($1)', [A])).some((p) => p.id === livre));
+
+// Master: perfil fixo de administrador da empresa, e toda empresa mantém pelo menos um
+teste('master: perfil fixo não pode ser editado', (await falha(`select octaplus.salvar_perfil($1, $2)`, [A, { id: ADMIN_A, nome: 'Chefe', permissoes: {} }])).includes('perfil_fixo'));
+teste('master: perfil fixo não pode ser excluído', (await falha(`select octaplus.apagar_perfil($1, $2)`, [A, ADMIN_A])).includes('perfil_fixo'));
+const gerenteDados = (await q('select * from octaplus.listar_membros($1)', [A])).find((m) => m.user_id === gerente);
+teste('master: aparece marcado na lista de usuários', gerenteDados.master === true && gerenteDados.perfil === 'Master', JSON.stringify(gerenteDados));
+await como(dono);
+teste('master: o último master não pode ser rebaixado', (await falha(`select octaplus.editar_membro($1, $2, 'Gê', $3)`, [A, gerente, EDITA_A])).includes('ultimo_master'));
+teste('master: o último master não pode ser inativado', (await falha(`select octaplus.definir_membro_ativo($1, $2, false)`, [A, gerente])).includes('ultimo_master'));
+teste('master: o último master não pode ser excluído', (await falha(`select octaplus.remover_membro($1, $2)`, [A, gerente])).includes('ultimo_master'));
+const outroMaster = (await um(`select octaplus.criar_usuario($1, 'master2@x.com', 'M2', 'senha-master-2', $2) id`, [A, ADMIN_A])).id;
+teste('master: com dois masters, um pode sair', (await falha(`select octaplus.remover_membro($1, $2)`, [A, outroMaster])) === '');
+const D = (await um(`select octaplus.salvar_empresa($1) id`, [{ nome: 'Sky Sul', master: { nome: 'Dora', email: 'dora@x.com', senha: 'senha-da-dora' } }])).id;
+const masterD = (await q('select * from octaplus.listar_membros($1)', [D]));
+teste('master: empresa nova já nasce com o usuário master', masterD.length === 1 && masterD[0].email === 'dora@x.com' && masterD[0].master === true, JSON.stringify(masterD));
+teste('master: empresa nova exige o master', (await falha(`select octaplus.salvar_empresa('{"nome":"Sem Master"}')`)).includes('master_obrigatorio'));
+teste('placa: dono aparece como Owner', (await q('select perfil, perfil_tipo from octaplus.listar_empresas() where id = $1', [D]))[0].perfil_tipo === 'owner');
+await q(`select octaplus.apagar_empresa($1, 'Sky Sul')`, [D]);
 
 await como(novo, A);
 const pode = async (area, acao) => (await um(`select octaplus.pode_aqui($1, $2) p`, [area, acao])).p;

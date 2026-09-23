@@ -2,11 +2,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState, t
 import { definirEmpresaAtual, empresaGuardada, supabase } from './supabase';
 import { useSession } from './session';
 import { PermissaoCtx, type Permissoes } from './permissao';
+import type { TipoCargo } from '../components/PlacaCargo';
 
 /** Empresa que o usuário pode abrir, com o perfil dele nela ('Dono' = dono da plataforma, tudo liberado). */
 export interface Empresa {
   id: string; nome: string; ativa: boolean; cnpj: string | null; telefone: string | null; site: string | null;
-  fuso: string | null; logo: string | null; criada_em: string; perfil: string; permissoes: Permissoes;
+  fuso: string | null; logo: string | null; criada_em: string; perfil: string; perfil_tipo: TipoCargo; permissoes: Permissoes;
 }
 
 interface EmpresasState {

@@ -55,13 +55,13 @@ export const AJUDA: Record<string, { titulo: string; texto: string }> = {
     texto: 'Quem acessa esta empresa e com qual perfil. Quem tem "Usuários: edita" no perfil cria usuários com senha provisória e, '
       + 'no ⋮ de cada um, edita nome e perfil, redefine a senha ou exclui (tira o acesso a esta empresa). O interruptor Ativo '
       + 'suspende sem excluir. Em "Configurar perfis de acesso" você define, para cada área do painel, se o perfil não vê, só vê ou '
-      + 'edita. "Ver todos" lista todo mundo e exporta em CSV.',
+      + 'edita. O Master é o administrador fixo da empresa e sempre sobra pelo menos um. "Ver todos" lista todo mundo e exporta em CSV.',
   },
   '/app/configuracoes/owner': {
     titulo: 'Owner',
     texto: 'Área do dono da plataforma. Cada empresa é isolada: integração do Octadesk, automações, números, histórico, chaves '
       + 'de API, usuários e perfis são só dela. Inativar pausa tudo (não recebe eventos, não envia e os usuários dela perdem o '
-      + 'acesso); Editar e Apagar ficam no ⋮. Abaixo da empresa, os usuários e perfis dela, como na aba Usuários.',
+      + 'acesso); Editar e Apagar ficam no ⋮. Toda empresa nasce com um usuário Master (administrador dela). Abaixo da empresa, os usuários e perfis dela, como na aba Usuários.',
   },
   '/app/configuracoes/api': {
     titulo: 'API',

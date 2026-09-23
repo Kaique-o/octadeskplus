@@ -24,28 +24,31 @@ type Row = Record<string, unknown>;
 const EMP_A = 'e0000000-0000-4000-8000-00000000000a';
 const AREAS_DEMO = ['automacoes', 'integracoes', 'empresa', 'usuarios', 'api', 'nao_perturbe'];
 const tudo = (nivel: string) => Object.fromEntries(AREAS_DEMO.map((a) => [a, nivel]));
-const DONO = { perfil: 'Dono', permissoes: tudo('editar') };
+const DONO = { perfil: 'Owner', perfil_tipo: 'owner', permissoes: tudo('editar') };
 const empresas: Row[] = [
   { id: EMP_A, nome: 'SkyTech', ativa: true, cnpj: '12345678000190', telefone: '(11) 94960-2880', site: 'https://gruposkytech.com', fuso: 'America/Sao_Paulo', criada_em: iso(dia(90)), ...DONO },
   { id: 'e0000000-0000-4000-8000-00000000000b', nome: 'Skyline', ativa: true, cnpj: null, telefone: null, site: null, fuso: 'America/Manaus', criada_em: iso(dia(20)), ...DONO },
 ];
 const perfisPadrao = (empresa_id: unknown): Row[] => [
-  { id: uid(), empresa_id, nome: 'Administrador', permissoes: tudo('editar') },
-  { id: uid(), empresa_id, nome: 'Edita', permissoes: { ...tudo('editar'), usuarios: 'ver' } },
-  { id: uid(), empresa_id, nome: 'Só vê', permissoes: tudo('ver') },
+  { id: uid(), empresa_id, nome: 'Master', permissoes: tudo('editar'), fixo: true },
+  { id: uid(), empresa_id, nome: 'Editor', permissoes: { ...tudo('editar'), usuarios: 'ver' }, fixo: false },
+  { id: uid(), empresa_id, nome: 'Observador', permissoes: tudo('ver'), fixo: false },
 ];
 const perfis: Row[] = empresas.flatMap((e) => perfisPadrao(e.id));
 const perfilDe = (empresa: unknown, nome: string) => perfis.find((p) => p.empresa_id === empresa && p.nome === nome)!.id;
 const membros: Row[] = [
-  { empresa_id: EMP_A, user_id: uid(), nome: 'Cristal Vendas', email: 'cristal@exemplo.com', perfil_id: perfilDe(EMP_A, 'Edita'), ativo: true, criado_em: iso(dia(60)), ultimo_acesso: iso(dia(0)), outras_empresas: 0 },
-  { empresa_id: EMP_A, user_id: uid(), nome: 'Bruno Expedição', email: 'bruno@exemplo.com', perfil_id: perfilDe(EMP_A, 'Só vê'), ativo: true, criado_em: iso(dia(40)), ultimo_acesso: iso(dia(3)), outras_empresas: 1 },
-  { empresa_id: EMP_A, user_id: uid(), nome: null, email: 'financeiro@exemplo.com', perfil_id: perfilDe(EMP_A, 'Só vê'), ativo: false, criado_em: iso(dia(80)), ultimo_acesso: null, outras_empresas: 0 },
+  { empresa_id: EMP_A, user_id: uid(), nome: 'Cristal Vendas', email: 'cristal@exemplo.com', perfil_id: perfilDe(EMP_A, 'Master'), ativo: true, criado_em: iso(dia(60)), ultimo_acesso: iso(dia(0)), outras_empresas: 0 },
+  { empresa_id: EMP_A, user_id: uid(), nome: 'Bruno Expedição', email: 'bruno@exemplo.com', perfil_id: perfilDe(EMP_A, 'Observador'), ativo: true, criado_em: iso(dia(40)), ultimo_acesso: iso(dia(3)), outras_empresas: 1 },
+  { empresa_id: EMP_A, user_id: uid(), nome: null, email: 'financeiro@exemplo.com', perfil_id: perfilDe(EMP_A, 'Observador'), ativo: false, criado_em: iso(dia(80)), ultimo_acesso: null, outras_empresas: 0 },
   ...Array.from({ length: 16 }, (_, i) => ({
     empresa_id: EMP_A, user_id: uid(), nome: `Vendedor ${String(i + 1).padStart(2, '0')}`, email: `vendedor${i + 1}@exemplo.com`,
-    perfil_id: perfilDe(EMP_A, 'Só vê'), ativo: true, criado_em: iso(dia(30 - i)), ultimo_acesso: iso(dia(i % 5)), outras_empresas: 0,
+    perfil_id: perfilDe(EMP_A, 'Observador'), ativo: true, criado_em: iso(dia(30 - i)), ultimo_acesso: iso(dia(i % 5)), outras_empresas: 0,
   })),
 ];
-const comPerfil = (m: Row) => ({ ...m, perfil: perfis.find((p) => p.id === m.perfil_id)?.nome ?? '' });
+const comPerfil = (m: Row) => {
+  const p = perfis.find((x) => x.id === m.perfil_id);
+  return { ...m, perfil: p?.nome ?? '', master: Boolean(p?.fixo) };
+};
 
 // ---------------------------------------------------------------- configuração e integração
 const configuracao: Row = {
@@ -232,6 +235,9 @@ const rpcs: Record<string, (args: Record<string, unknown>) => unknown> = {
     const nova = { cnpj: null, telefone: null, site: null, fuso: 'America/Sao_Paulo', ...x, id: uid(), ativa: true, criada_em: iso(new Date()), ...DONO };
     empresas.push(nova);
     perfis.push(...perfisPadrao(nova.id));
+    const master = x.master as Row | undefined;
+    if (master?.email) membros.push({ empresa_id: nova.id, user_id: uid(), nome: master.nome || null, email: String(master.email).toLowerCase(),
+      perfil_id: perfilDe(nova.id, 'Master'), ativo: true, criado_em: iso(new Date()), ultimo_acesso: null, outras_empresas: 0 });
     return nova.id;
   },
   definir_empresa_ativa: ({ p_empresa, p_ativa }) => { const e = empresas.find((x) => x.id === p_empresa); if (e) e.ativa = p_ativa; return null; },
@@ -252,7 +258,7 @@ const rpcs: Record<string, (args: Record<string, unknown>) => unknown> = {
   },
   listar_perfis: ({ p_empresa }) => perfis.filter((p) => p.empresa_id === p_empresa)
     .map((p): Row => ({ ...p, usuarios: membros.filter((m) => m.perfil_id === p.id).length }))
-    .sort((a, b) => String(a.nome).localeCompare(String(b.nome))),
+    .sort((a, b) => Number(Boolean(b.fixo)) - Number(Boolean(a.fixo)) || String(a.nome).localeCompare(String(b.nome))),
   salvar_perfil: ({ p_empresa, p }) => {
     const x = (p ?? {}) as Row;
     const permissoes = Object.fromEntries(AREAS_DEMO.map((a) => [a, (x.permissoes as Row | undefined)?.[a] ?? 'nenhum']));

@@ -3,7 +3,7 @@ import { Alert, PageHeader, Spinner } from '../components/ui';
 import { errorMessage, supabase } from '../lib/supabase';
 import { useSession } from '../lib/session';
 import { useEmpresas } from '../lib/empresas';
-import { AREAS, NIVEIS, nivelDe } from '../lib/permissao';
+import PlacaCargo from '../components/PlacaCargo';
 import FotoEditavel from '../components/FotoEditavel';
 import { iniciais as iniciaisDe } from './SidebarFooter';
 
@@ -78,19 +78,7 @@ export default function Profile() {
         </div>
       </section>
 
-      <section className="card max-w-xl p-5">
-        <h2 className="font-semibold">Acesso ao Octadesk Plus</h2>
-        <p className="mt-2 text-sm">Perfil em <b>{atual?.nome}</b>: <b>{atual?.perfil}</b></p>
-        <ul className="mt-3 grid gap-1 text-sm sm:grid-cols-2">
-          {AREAS.map((a) => (
-            <li key={a.chave} className="flex justify-between gap-3 rounded bg-fog px-3 py-1.5">
-              <span>{a.label}</span>
-              <span className="text-muted">{NIVEIS.find((n) => n.valor === nivelDe(atual?.permissoes ?? {}, a.chave))?.label}</span>
-            </li>
-          ))}
-        </ul>
-        <p className="mt-3 text-xs text-muted">O perfil de cada empresa é definido por quem gerencia os usuários dela.</p>
-      </section>
+      {atual && <div className="max-w-xl"><PlacaCargo tipo={atual.perfil_tipo} nome={atual.perfil} /></div>}
     </div>
   );
 }
