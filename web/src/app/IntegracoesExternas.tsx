@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { BarChart3, Lock, Pencil, Plug, Plus, Trash2 } from 'lucide-react';
+import { Lock, Pencil, Plug, Plus, Trash2 } from 'lucide-react';
+import { siGooglesheets, siHubspot, siTrello, siZoho, type SimpleIcon } from 'simple-icons';
 import { Alert, EmptyState, MenuAcoes, Modal, Spinner } from '../components/ui';
 import SettingsTabs from './SettingsTabs';
 import { errorMessage, supabase } from '../lib/supabase';
@@ -12,16 +13,31 @@ interface Integracao {
 }
 
 // Catálogo do modal. Só o metrics conecta hoje; o resto aparece bloqueado ("Em breve").
-const CATALOGO: { tipo: string; nome: string; descricao: string; sigla: string; cor: string; disponivel?: boolean }[] = [
-  { tipo: 'metrics', nome: 'metrics', descricao: 'CRM da Skytech: clientes, vendas, créditos e curvas para os gatilhos.', sigla: 'M', cor: 'bg-brand-soft text-brand', disponivel: true },
-  { tipo: 'trello', nome: 'Trello', descricao: 'Cards e quadros.', sigla: 'T', cor: 'bg-sky-100 text-sky-700' },
-  { tipo: 'salesforce', nome: 'Salesforce', descricao: 'Leads, contas e oportunidades.', sigla: 'SF', cor: 'bg-cyan-100 text-cyan-700' },
-  { tipo: 'hubspot', nome: 'HubSpot', descricao: 'Contatos, negócios e pipelines.', sigla: 'H', cor: 'bg-orange-100 text-orange-700' },
-  { tipo: 'pipedrive', nome: 'Pipedrive', descricao: 'Negócios e atividades.', sigla: 'P', cor: 'bg-green-100 text-green-700' },
-  { tipo: 'rdstation', nome: 'RD Station', descricao: 'Leads e automação de marketing.', sigla: 'RD', cor: 'bg-indigo-100 text-indigo-700' },
-  { tipo: 'zoho', nome: 'Zoho CRM', descricao: 'Leads, contatos e negócios.', sigla: 'Z', cor: 'bg-red-100 text-red-700' },
-  { tipo: 'sheets', nome: 'Google Sheets', descricao: 'Planilhas como origem de contatos.', sigla: 'GS', cor: 'bg-emerald-100 text-emerald-700' },
+// Logos das marcas vêm do simple-icons (SVG embutido, sem CDN). Salesforce, Pipedrive e RD Station não estão no
+// pacote: ficam com as iniciais na cor da marca até chegar a logo; o metrics também, até recebermos a dele.
+interface ItemCatalogo { tipo: string; nome: string; descricao: string; cor: string; sigla: string; icone?: SimpleIcon; disponivel?: boolean }
+const CATALOGO: ItemCatalogo[] = [
+  { tipo: 'metrics', nome: 'metrics', descricao: 'CRM da Skytech: clientes, vendas, créditos e curvas para os gatilhos.', cor: '#1366c9', sigla: 'M', disponivel: true },
+  { tipo: 'trello', nome: 'Trello', descricao: 'Cards e quadros.', cor: '#0052cc', sigla: 'T', icone: siTrello },
+  { tipo: 'salesforce', nome: 'Salesforce', descricao: 'Leads, contas e oportunidades.', cor: '#00a1e0', sigla: 'SF' },
+  { tipo: 'hubspot', nome: 'HubSpot', descricao: 'Contatos, negócios e pipelines.', cor: '#ff7a59', sigla: 'H', icone: siHubspot },
+  { tipo: 'pipedrive', nome: 'Pipedrive', descricao: 'Negócios e atividades.', cor: '#017737', sigla: 'P' },
+  { tipo: 'rdstation', nome: 'RD Station', descricao: 'Leads e automação de marketing.', cor: '#19c1ce', sigla: 'RD' },
+  { tipo: 'zoho', nome: 'Zoho CRM', descricao: 'Leads, contatos e negócios.', cor: '#e42527', sigla: 'Z', icone: siZoho },
+  { tipo: 'sheets', nome: 'Google Sheets', descricao: 'Planilhas como origem de contatos.', cor: '#34a853', sigla: 'GS', icone: siGooglesheets },
 ];
+
+/** Logo da integração: SVG da marca sobre branco, ou as iniciais sobre a cor da marca. */
+function LogoIntegracao({ item }: { item: ItemCatalogo }) {
+  if (item.icone) {
+    return (
+      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-line bg-white">
+        <svg viewBox="0 0 24 24" className="h-5 w-5" fill={item.cor} role="img" aria-label={item.nome}><path d={item.icone.path} /></svg>
+      </span>
+    );
+  }
+  return <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg text-xs font-bold text-white" style={{ background: item.cor }}>{item.sigla}</span>;
+}
 
 const STATUS: Record<Integracao['status'], [string, string]> = {
   pendente: ['Aguardando validação', 'text-amber-600'],
@@ -80,7 +96,7 @@ export default function IntegracoesExternas() {
                     <tr key={i.id}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <span className={`grid h-9 w-9 place-items-center rounded-lg ${cat.cor}`}><BarChart3 className="h-4 w-4" /></span>
+                          <LogoIntegracao item={cat} />
                           <span className="font-medium">{cat.nome}</span>
                         </div>
                       </td>
@@ -105,16 +121,16 @@ export default function IntegracoesExternas() {
       </section>
 
       {janela?.tipo === 'catalogo' && (
-        <Modal open largo title="Adicionar integração" onClose={() => setJanela(null)}>
-          <div className="grid gap-3 sm:grid-cols-2">
+        <Modal open title="Adicionar integração" onClose={() => setJanela(null)}>
+          <div className="space-y-2">
             {CATALOGO.map((c) => {
               const bloqueada = !c.disponivel;
               const conectada = !bloqueada && jaTem(c.tipo);
               return (
                 <button key={c.tipo} type="button" disabled={bloqueada}
                   onClick={() => setJanela({ tipo: 'metrics', atual: itens?.find((i) => i.tipo === c.tipo) })}
-                  className={`flex items-start gap-3 rounded-xl border p-4 text-left transition ${bloqueada ? 'cursor-not-allowed border-line bg-fog opacity-60' : 'border-line bg-white hover:border-brand hover:shadow-sm'}`}>
-                  <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-lg text-sm font-bold ${c.cor}`}>{c.sigla}</span>
+                  className={`flex w-full items-center gap-3 rounded-xl border p-3 text-left transition ${bloqueada ? 'cursor-not-allowed border-line bg-fog opacity-60' : 'border-line bg-white hover:border-brand hover:shadow-sm'}`}>
+                  <LogoIntegracao item={c} />
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center justify-between gap-2">
                       <strong className="font-semibold">{c.nome}</strong>
