@@ -14,16 +14,17 @@ interface Integracao {
 
 // Catálogo do modal. Só o metrics conecta hoje; o resto aparece bloqueado ("Indisponível").
 // Logos das marcas vêm do simple-icons (SVG embutido, sem CDN; licença CC0). A Salesforce saiu das versões novas do
-// pacote: o desenho vem da 9.21. Pipedrive, RD Station e o metrics não existem lá e ficam com as iniciais até
-// recebermos as logos.
+// pacote: o desenho vem da 9.21. A Pipedrive usa o "p" do logo oficial (Wikimedia Commons, domínio público), com o
+// enquadramento do arquivo original. RD Station e metrics ficam com as iniciais até recebermos as logos.
 const SALESFORCE = { path: 'M10.006 5.415a4.195 4.195 0 013.045-1.306c1.56 0 2.954.9 3.69 2.205.63-.3 1.35-.45 2.1-.45 2.85 0 5.159 2.34 5.159 5.22s-2.31 5.22-5.176 5.22c-.345 0-.69-.044-1.02-.104a3.75 3.75 0 01-3.3 1.95c-.6 0-1.155-.15-1.65-.375A4.314 4.314 0 018.88 20.4a4.302 4.302 0 01-4.05-2.82c-.27.062-.54.076-.825.076-2.204 0-4.005-1.8-4.005-4.05 0-1.5.811-2.805 2.01-3.51-.255-.57-.39-1.2-.39-1.846 0-2.58 2.1-4.65 4.65-4.65 1.53 0 2.85.705 3.72 1.8' } as SimpleIcon;
-interface ItemCatalogo { tipo: string; nome: string; cor: string; sigla: string; icone?: SimpleIcon; disponivel?: boolean }
+const PIPEDRIVE = { path: 'm128.3 87.8c-11.9 0-18.8 5.4-22.1 9-0.4-3.2-2.5-7.3-10.7-7.3h-17.9v18.6h7.3c1.2 0 1.6 0.4 1.6 1.6v85.1h21.2v-31.8-2.4c3.3 3 9.6 7.2 19.5 7.2 20.7 0 35.2-16.4 35.2-40 0.1-23.9-13.7-40-34.1-40m-4.3 61.5c-11.4 0-16.6-10.9-16.6-21.1 0-16 8.7-21.7 16.9-21.7 10 0 16.8 8.6 16.8 21.5-0.1 14.8-8.7 21.3-17.1 21.3' } as SimpleIcon;
+interface ItemCatalogo { tipo: string; nome: string; cor: string; sigla: string; icone?: SimpleIcon; viewBox?: string; disponivel?: boolean }
 const CATALOGO: ItemCatalogo[] = [
   { tipo: 'metrics', nome: 'metrics', cor: '#1366c9', sigla: 'M', disponivel: true },
   { tipo: 'trello', nome: 'Trello', cor: '#0052cc', sigla: 'T', icone: siTrello },
   { tipo: 'salesforce', nome: 'Salesforce', cor: '#00a1e0', sigla: 'SF', icone: SALESFORCE },
   { tipo: 'hubspot', nome: 'HubSpot', cor: '#ff7a59', sigla: 'H', icone: siHubspot },
-  { tipo: 'pipedrive', nome: 'Pipedrive', cor: '#017737', sigla: 'P' },
+  { tipo: 'pipedrive', nome: 'Pipedrive', cor: '#017737', sigla: 'P', icone: PIPEDRIVE, viewBox: '64.5 84 112 112' },
   { tipo: 'rdstation', nome: 'RD Station', cor: '#19c1ce', sigla: 'RD' },
   { tipo: 'zoho', nome: 'Zoho CRM', cor: '#e42527', sigla: 'Z', icone: siZoho },
   { tipo: 'sheets', nome: 'Google Sheets', cor: '#34a853', sigla: 'GS', icone: siGooglesheets },
@@ -34,7 +35,7 @@ function LogoIntegracao({ item }: { item: ItemCatalogo }) {
   if (item.icone) {
     return (
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-line bg-white">
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill={item.cor} role="img" aria-label={item.nome}><path d={item.icone.path} /></svg>
+        <svg viewBox={item.viewBox ?? '0 0 24 24'} className="h-5 w-5" fill={item.cor} role="img" aria-label={item.nome}><path d={item.icone.path} /></svg>
       </span>
     );
   }
