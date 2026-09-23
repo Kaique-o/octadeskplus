@@ -13,18 +13,20 @@ interface Integracao {
 }
 
 // Catálogo do modal. Só o metrics conecta hoje; o resto aparece bloqueado ("Indisponível").
-// Logos das marcas vêm do simple-icons (SVG embutido, sem CDN). Salesforce, Pipedrive e RD Station não estão no
-// pacote: ficam com as iniciais na cor da marca até chegar a logo; o metrics também, até recebermos a dele.
-interface ItemCatalogo { tipo: string; nome: string; descricao: string; cor: string; sigla: string; icone?: SimpleIcon; disponivel?: boolean }
+// Logos das marcas vêm do simple-icons (SVG embutido, sem CDN; licença CC0). A Salesforce saiu das versões novas do
+// pacote: o desenho vem da 9.21. Pipedrive, RD Station e o metrics não existem lá e ficam com as iniciais até
+// recebermos as logos.
+const SALESFORCE = { path: 'M10.006 5.415a4.195 4.195 0 013.045-1.306c1.56 0 2.954.9 3.69 2.205.63-.3 1.35-.45 2.1-.45 2.85 0 5.159 2.34 5.159 5.22s-2.31 5.22-5.176 5.22c-.345 0-.69-.044-1.02-.104a3.75 3.75 0 01-3.3 1.95c-.6 0-1.155-.15-1.65-.375A4.314 4.314 0 018.88 20.4a4.302 4.302 0 01-4.05-2.82c-.27.062-.54.076-.825.076-2.204 0-4.005-1.8-4.005-4.05 0-1.5.811-2.805 2.01-3.51-.255-.57-.39-1.2-.39-1.846 0-2.58 2.1-4.65 4.65-4.65 1.53 0 2.85.705 3.72 1.8' } as SimpleIcon;
+interface ItemCatalogo { tipo: string; nome: string; cor: string; sigla: string; icone?: SimpleIcon; disponivel?: boolean }
 const CATALOGO: ItemCatalogo[] = [
-  { tipo: 'metrics', nome: 'metrics', descricao: 'CRM da Skytech: clientes, vendas, créditos e curvas para os gatilhos.', cor: '#1366c9', sigla: 'M', disponivel: true },
-  { tipo: 'trello', nome: 'Trello', descricao: 'Cards e quadros.', cor: '#0052cc', sigla: 'T', icone: siTrello },
-  { tipo: 'salesforce', nome: 'Salesforce', descricao: 'Leads, contas e oportunidades.', cor: '#00a1e0', sigla: 'SF' },
-  { tipo: 'hubspot', nome: 'HubSpot', descricao: 'Contatos, negócios e pipelines.', cor: '#ff7a59', sigla: 'H', icone: siHubspot },
-  { tipo: 'pipedrive', nome: 'Pipedrive', descricao: 'Negócios e atividades.', cor: '#017737', sigla: 'P' },
-  { tipo: 'rdstation', nome: 'RD Station', descricao: 'Leads e automação de marketing.', cor: '#19c1ce', sigla: 'RD' },
-  { tipo: 'zoho', nome: 'Zoho CRM', descricao: 'Leads, contatos e negócios.', cor: '#e42527', sigla: 'Z', icone: siZoho },
-  { tipo: 'sheets', nome: 'Google Sheets', descricao: 'Planilhas como origem de contatos.', cor: '#34a853', sigla: 'GS', icone: siGooglesheets },
+  { tipo: 'metrics', nome: 'metrics', cor: '#1366c9', sigla: 'M', disponivel: true },
+  { tipo: 'trello', nome: 'Trello', cor: '#0052cc', sigla: 'T', icone: siTrello },
+  { tipo: 'salesforce', nome: 'Salesforce', cor: '#00a1e0', sigla: 'SF', icone: SALESFORCE },
+  { tipo: 'hubspot', nome: 'HubSpot', cor: '#ff7a59', sigla: 'H', icone: siHubspot },
+  { tipo: 'pipedrive', nome: 'Pipedrive', cor: '#017737', sigla: 'P' },
+  { tipo: 'rdstation', nome: 'RD Station', cor: '#19c1ce', sigla: 'RD' },
+  { tipo: 'zoho', nome: 'Zoho CRM', cor: '#e42527', sigla: 'Z', icone: siZoho },
+  { tipo: 'sheets', nome: 'Google Sheets', cor: '#34a853', sigla: 'GS', icone: siGooglesheets },
 ];
 
 /** Logo da integração: SVG da marca sobre branco, ou as iniciais sobre a cor da marca. */
@@ -137,7 +139,6 @@ export default function IntegracoesExternas() {
                       {bloqueada ? <span className="flex items-center gap-1 text-xs text-muted"><Lock className="h-3.5 w-3.5" />Indisponível</span>
                         : conectada ? <span className="text-xs font-medium text-success">Conectado</span> : null}
                     </span>
-                    <span className="mt-0.5 block text-xs text-muted">{c.descricao}</span>
                   </span>
                 </button>
               );
