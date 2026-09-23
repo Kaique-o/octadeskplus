@@ -18,9 +18,10 @@ export default function LogoEmpresa({ empresa, tamanho = 'md', editavel, onMudou
 }) {
   const [aberto, setAberto] = useState(false);
   const quadro = (
-    <span className={`grid shrink-0 place-items-center overflow-hidden ${empresa.logo ? 'border border-line bg-white' : 'bg-brand-soft text-brand'} ${TAMANHOS[tamanho]}`}>
+    <span className={`grid shrink-0 place-items-center overflow-hidden bg-brand-soft text-brand ${TAMANHOS[tamanho]}`}>
       {empresa.logo
-        ? <img src={empresa.logo} alt={`Logo de ${empresa.nome}`} className="h-full w-full object-contain p-0.5" />
+        // preenche o quadro: os cantos arredondados valem para a própria foto
+        ? <img src={empresa.logo} alt={`Logo de ${empresa.nome}`} className={`h-full w-full object-cover ${TAMANHOS[tamanho]}`} />
         : <Building2 size={ICONE[tamanho]} strokeWidth={1.8} />}
     </span>
   );
@@ -67,7 +68,7 @@ function ModalLogo({ empresa, onClose, onSalvo }: { empresa: EmpresaLogo; onClos
         <button type="button" onClick={() => entrada.current?.click()}
           className="grid h-32 w-32 shrink-0 place-items-center overflow-hidden rounded-2xl border-2 border-dashed border-line bg-fog text-muted transition hover:border-brand hover:text-brand"
           onDragOver={(e) => e.preventDefault()} onDrop={(e) => { e.preventDefault(); escolher(e.dataTransfer.files[0]); }}>
-          {imagem ? <img src={imagem} alt="Pré-visualização" className="h-full w-full bg-white object-contain p-1" /> : <ImageUp size={32} strokeWidth={1.6} />}
+          {imagem ? <img src={imagem} alt="Pré-visualização" className="h-full w-full rounded-2xl object-cover" /> : <ImageUp size={32} strokeWidth={1.6} />}
         </button>
         <div className="space-y-3 text-sm">
           <p className="text-muted">Clique no quadro ou arraste uma imagem (PNG, JPG ou WebP, até 5 MB). Ela é reduzida para 256 px e aparece na escolha de empresa e nas configurações.</p>
