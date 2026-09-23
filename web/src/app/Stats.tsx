@@ -61,12 +61,12 @@ const TONS: Record<Tom, { card: string; quadro: string; icone: string; numero: s
 function CardNumero({ label, valor, sub, icone: Icone, tom }: Card) {
   const t = TONS[tom];
   return (
-    // linhas fixas (ícone, rótulo, número, legenda): todos os cards da grade ficam alinhados
-    <div className={`grid grid-rows-[auto_auto_auto_1.25rem] rounded-2xl border p-5 shadow-sm ${t.card}`}>
-      <span className={`grid h-11 w-11 place-items-center rounded-xl ${t.quadro}`}><Icone className={`h-5 w-5 ${t.icone}`} strokeWidth={1.8} /></span>
-      <p className="mt-4 truncate text-sm text-muted" title={label}>{label}</p>
-      <p className={`mt-1 font-title text-4xl font-bold leading-tight tabular-nums tracking-tight ${t.numero}`}>{valor}</p>
-      <p className={`mt-1 truncate text-sm ${t.sub}`} title={sub}>{sub}</p>
+    // rótulo e legenda reservam 2 linhas: os 6 cabem numa linha sem cortar texto e continuam alinhados
+    <div className={`flex flex-col rounded-2xl border p-4 shadow-sm ${t.card}`}>
+      <span className={`grid h-10 w-10 place-items-center rounded-xl ${t.quadro}`}><Icone className={`h-5 w-5 ${t.icone}`} strokeWidth={1.8} /></span>
+      <p className="mt-3 line-clamp-2 min-h-[2lh] text-[13px] leading-snug text-muted">{label}</p>
+      <p className={`mt-1 font-title text-3xl font-bold leading-tight tabular-nums tracking-tight ${t.numero}`}>{valor}</p>
+      <p className={`mt-1 line-clamp-2 min-h-[2lh] text-xs leading-snug ${t.sub}`}>{sub}</p>
     </div>
   );
 }
@@ -133,9 +133,9 @@ export default function Stats() {
         </div>
       </div>
 
-      {/* colunas pela largura do conteúdo (não da tela): 6 só quando cada card tem espaço para o texto inteiro */}
+      {/* os 6 numa linha no computador; em espaço estreito, 3 ou 2 por linha */}
       <div className="@container">
-      <div className="grid grid-cols-1 gap-4 @sm:grid-cols-2 @2xl:grid-cols-3 @7xl:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 @xl:grid-cols-3 @3xl:grid-cols-6">
         {cards.map((c) => <CardNumero key={c.label} {...c} />)}
       </div>
       </div>
