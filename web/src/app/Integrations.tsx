@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Check, ChevronDown, Clock, Copy, KeyRound, Phone, Plus, RefreshCw, Route, Trash2, Webhook } from 'lucide-react';
-import { Alert, Spinner, StatusChip, Toggle } from '../components/ui';
+import { Alert, Spinner, Toggle } from '../components/ui';
 import { OctadeskMark } from '../components/LogoOctadesk';
 import SettingsTabs from './SettingsTabs';
 import { WEEKDAYS } from '../lib/constants';
@@ -11,24 +11,19 @@ import type { Configuracao, Grupo, Integracao, MapaFila, Numero, Template } from
 type Aviso = { kind: 'success' | 'error'; text: string } | null;
 const quando = (d: string | null) => (d ? new Date(d).toLocaleString('pt-BR') : 'nunca');
 
-/** Card recolhível: o cabeçalho (ícone, título, texto) abre e fecha; `acoes` fica sempre visível ao lado. */
-function Secao({ icone, titulo, texto, children, acoes, aberta = true }: {
-  icone: React.ReactNode; titulo: string; texto?: string; children: React.ReactNode; acoes?: React.ReactNode; aberta?: boolean;
-}) {
-  const [aberto, setAberto] = useState(aberta);
+/** Card recolhível: o cabeçalho inteiro abre e fecha; começa fechado. */
+function Secao({ icone, titulo, texto, children }: { icone: React.ReactNode; titulo: string; texto?: string; children: React.ReactNode }) {
+  const [aberto, setAberto] = useState(false);
   return (
     <section className="card p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <button type="button" onClick={() => setAberto(!aberto)} aria-expanded={aberto}
-          className="group min-w-0 flex-1 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30 rounded-lg">
-          <div className="flex items-center gap-2 text-brand">
-            {icone}<h2 className="font-title text-lg font-semibold text-ink">{titulo}</h2>
-            <ChevronDown className={`h-5 w-5 text-muted transition-transform group-hover:text-ink ${aberto ? 'rotate-180' : ''}`} />
-          </div>
+      <button type="button" onClick={() => setAberto(!aberto)} aria-expanded={aberto}
+        className="group flex w-full items-center gap-4 rounded-lg text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30">
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 text-brand">{icone}<h2 className="font-title text-lg font-semibold text-ink">{titulo}</h2></div>
           {texto && <p className="mt-1 max-w-3xl text-sm text-muted">{texto}</p>}
-        </button>
-        {acoes}
-      </div>
+        </div>
+        <ChevronDown className={`h-5 w-5 shrink-0 text-muted transition-transform group-hover:text-ink ${aberto ? 'rotate-180' : ''}`} />
+      </button>
       {aberto && <div className="mt-4">{children}</div>}
     </section>
   );
@@ -82,9 +77,8 @@ function CardOctadesk({ integracao, onMudou }: { integracao: Integracao; onMudou
   }
 
   return (
-    <Secao icone={<OctadeskMark className="h-5 w-5" />} titulo="Octadesk" aberta={integracao.status !== 'conectado'}
-      texto="API pública do Octadesk (Configuração › Geral › API). A chave fica guardada no servidor e nunca volta para o navegador."
-      acoes={<StatusChip status={{ nao_configurado: 'missing', validando: 'checking', conectado: 'connected', erro: 'error' }[integracao.status]} />}>
+    <Secao icone={<OctadeskMark className="h-5 w-5" />} titulo="Octadesk"
+      texto="API pública do Octadesk (Configuração › Geral › API). A chave fica guardada no servidor e nunca volta para o navegador.">
       <p className="mb-4 text-xs text-muted">Validado: {quando(integracao.validado_em)} · Catálogo sincronizado: {quando(integracao.sincronizado_em)}</p>
       {integracao.ultimo_erro && <div className="mb-4"><Alert>{integracao.ultimo_erro}</Alert></div>}
       <div className="grid gap-4 md:grid-cols-2">
