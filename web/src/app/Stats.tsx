@@ -133,8 +133,11 @@ export default function Stats() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
+      {/* colunas pela largura do conteúdo (não da tela): 6 só quando cada card tem espaço para o texto inteiro */}
+      <div className="@container">
+      <div className="grid grid-cols-1 gap-4 @sm:grid-cols-2 @2xl:grid-cols-3 @7xl:grid-cols-6">
         {cards.map((c) => <CardNumero key={c.label} {...c} />)}
+      </div>
       </div>
 
       <section className="card p-5">
