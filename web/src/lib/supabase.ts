@@ -6,16 +6,33 @@ const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
 
 if (!DEMO && (!url || !key)) console.warn('Configure VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY em web/.env.local');
 
-// Mesmo Supabase do metrics: login e usuários são os dele; as tabelas do painel ficam no schema `octaplus`.
-const realClient = createClient(url ?? 'http://localhost', key ?? 'missing', { db: { schema: 'octaplus' } });
+// Empresa atual: vai no header x-empresa de toda chamada e o banco só mostra os dados dela (RLS).
+// Começa pela última escolhida, para as primeiras chamadas depois de recarregar a página já irem certas.
+const CHAVE_EMPRESA = 'octaplus.empresa';
+let empresaAtual: string | null = (() => {
+  try { return JSON.parse(localStorage.getItem(CHAVE_EMPRESA) ?? 'null') as string | null; } catch { return null; }
+})();
+
+export function definirEmpresaAtual(id: string | null) {
+  empresaAtual = id;
+  try { if (id) localStorage.setItem(CHAVE_EMPRESA, JSON.stringify(id)); else localStorage.removeItem(CHAVE_EMPRESA); } catch { /* sem storage */ }
+}
+export const empresaGuardada = () => empresaAtual;
+
+const comEmpresa: typeof fetch = (input, init) => {
+  if (!empresaAtual) return fetch(input, init);
+  const headers = new Headers(init?.headers);
+  headers.set('x-empresa', empresaAtual);
+  return fetch(input, { ...init, headers });
+};
+
+// As tabelas do painel ficam no schema `octaplus`.
+const realClient = createClient(url ?? 'http://localhost', key ?? 'missing', { db: { schema: 'octaplus' }, global: { fetch: comEmpresa } });
 // No modo demonstração tudo roda em memória (veja demo.ts): nenhuma chamada sai do navegador.
 export const supabase = DEMO ? (demoClient as unknown as typeof realClient) : realClient;
 
 const n8nUrl = (import.meta.env.VITE_N8N_WEBHOOK_URL as string) || (DEMO ? 'https://n8n.seu-dominio.com/webhook' : '');
 export const N8N_WEBHOOK_URL = n8nUrl.replace(/\/$/, '');
-
-/** Onde fica o metrics (cadastro de usuários e permissões). */
-export const METRICS_URL = ((import.meta.env.VITE_METRICS_URL as string) || 'https://metrics.gruposkytech.com').replace(/\/$/, '');
 
 /** URL que um sistema externo (ou uma campanha do metrics) chama para disparar a automação. */
 export const urlWebhookExterno = (id: string, segredo: string) => `${N8N_WEBHOOK_URL}/octaplus/in/${id}?secret=${segredo}`;
@@ -29,6 +46,14 @@ export function errorMessage(e: unknown): string {
   const map: Record<string, string> = {
     sem_permissao: 'Você não tem permissão para esta ação.',
     fonte_combina_com_gatilho: 'A origem e o gatilho escolhidos não combinam.',
+    confirmacao_invalida: 'O nome digitado não confere com o da empresa.',
+    usuario_e_dono: 'Esse usuário é o dono da plataforma: ele já tem acesso a tudo.',
+    senha_curta: 'A senha precisa ter pelo menos 8 caracteres.',
+    email_invalido: 'E-mail inválido.',
+    nivel_invalido: 'Nível de acesso inválido.',
+    nao_encontrado: 'Registro não encontrado nesta empresa.',
+    empresas_cnpj_check: 'O CNPJ precisa ter 14 dígitos.',
+    empresas_nome_check: 'Informe o nome da empresa.',
     'Invalid login credentials': 'E-mail ou senha incorretos.',
     'Email not confirmed': 'Confirme o e-mail pelo link que enviamos antes de entrar.',
     'User already registered': 'Já existe uma conta com este e-mail.',

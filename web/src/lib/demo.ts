@@ -14,16 +14,27 @@ const USER = 'c0000000-0000-4000-8000-0000000000a1';
 export const demoSession = {
   session: { user: { id: USER, email: 'kaique@exemplo.com' } },
   profile: { id: USER, email: 'kaique@exemplo.com', full_name: 'Kaique Demo' },
-  podeVer: true,
-  podeEditar: true,
+  eDono: true,
 };
 
 type Row = Record<string, unknown>;
 
+// ---------------------------------------------------------------- empresas e usuários
+// Na demonstração as duas empresas mostram os mesmos dados de exemplo; o isolamento de verdade é do banco.
+const EMP_A = 'e0000000-0000-4000-8000-00000000000a';
+const empresas: Row[] = [
+  { id: EMP_A, nome: 'SkyTech', ativa: true, cnpj: '12345678000190', telefone: '(11) 94960-2880', site: 'https://gruposkytech.com', criada_em: iso(dia(90)), nivel: 'dono' },
+  { id: 'e0000000-0000-4000-8000-00000000000b', nome: 'Skyline', ativa: true, cnpj: null, telefone: null, site: null, criada_em: iso(dia(20)), nivel: 'dono' },
+];
+const membros: Row[] = [
+  { empresa_id: EMP_A, user_id: uid(), nome: 'Cristal Vendas', email: 'cristal@exemplo.com', nivel: 'editar', ativo: true, criado_em: iso(dia(60)), ultimo_acesso: iso(dia(0)) },
+  { empresa_id: EMP_A, user_id: uid(), nome: 'Bruno Expedição', email: 'bruno@exemplo.com', nivel: 'ver', ativo: true, criado_em: iso(dia(40)), ultimo_acesso: iso(dia(3)) },
+  { empresa_id: EMP_A, user_id: uid(), nome: null, email: 'financeiro@exemplo.com', nivel: 'ver', ativo: false, criado_em: iso(dia(80)), ultimo_acesso: null },
+];
+
 // ---------------------------------------------------------------- configuração e integração
 const configuracao: Row = {
-  id: true, fuso: 'America/Sao_Paulo', empresa_nome: 'Grupo Skytech', empresa_cnpj: '12345678000190',
-  empresa_telefone: '(11) 94960-2880', empresa_site: 'https://gruposkytech.com', numero_envio_padrao: '+5511949602880', emails_alerta: ['comercial@exemplo.com'],
+  empresa_id: EMP_A, fuso: 'America/Sao_Paulo', numero_envio_padrao: '+5511949602880', emails_alerta: ['comercial@exemplo.com'],
   limite_contato_horas: 24, janela_deteccao_horas: 48,
   horario_comercial: { perDay: {
     0: { enabled: false, windows: [{ start: '09:00', end: '18:00' }] },
@@ -37,7 +48,7 @@ const configuracao: Row = {
 };
 
 const integracao: Row = {
-  id: true, base_url: 'https://o000000-000.api001.octadesk.services', subdominio: 'o000000-000', agente_email: 'bot@exemplo.com',
+  empresa_id: EMP_A, base_url: 'https://o000000-000.api001.octadesk.services', subdominio: 'o000000-000', agente_email: 'bot@exemplo.com',
   api_privada_ativa: true, status: 'conectado', ultimo_erro: null, validado_em: iso(dia(0)), sincronizado_em: iso(dia(0)),
   sincronizacao_pedida_em: null, segredo_webhook: 'demo8f3a91c2e4b7d6a5f1e0c9b8a7d6e5f4',
 };
@@ -146,7 +157,8 @@ const tabelas: Record<string, Row[]> = {
 };
 
 // ---------------------------------------------------------------- "PostgREST" em memória
-const cmp = (row: Row, col: string, val: unknown) => String(row[col] ?? '') === String(val);
+// linhas de exemplo sem empresa_id valem para qualquer empresa
+const cmp = (row: Row, col: string, val: unknown) => (col === 'empresa_id' && row[col] === undefined) || String(row[col] ?? '') === String(val);
 
 class Query implements PromiseLike<{ data: unknown; error: null }> {
   private rows: Row[];
@@ -157,10 +169,10 @@ class Query implements PromiseLike<{ data: unknown; error: null }> {
   select() { return this; }
   insert(v: Row | Row[]) { (tabelas[this.table] ??= []).push(...(Array.isArray(v) ? v : [v]).map((r) => ({ id: uid(), criado_em: iso(new Date()), ...r }))); return this; }
   upsert(v: Row | Row[], opts?: { onConflict?: string }) {
-    const chave = opts?.onConflict ?? 'id';
+    const chaves = (opts?.onConflict ?? 'id').split(',');
     for (const r of Array.isArray(v) ? v : [v]) {
       const alvo = (tabelas[this.table] ??= []);
-      const existente = alvo.find((x) => x[chave] === r[chave]);
+      const existente = alvo.find((x) => chaves.every((k) => cmp(x, k, r[k] ?? EMP_A)));
       if (existente) Object.assign(existente, r); else alvo.push(r);
     }
     return this;
@@ -195,13 +207,29 @@ class Query implements PromiseLike<{ data: unknown; error: null }> {
 const noDia = (valor: unknown, chave: string) => String(valor ?? '').slice(0, 10) === chave;
 
 const rpcs: Record<string, (args: Record<string, unknown>) => unknown> = {
-  pode: () => true,
-  listar_usuarios: () => [
-    { id: USER, nome: 'Kaique Demo', email: 'kaique@exemplo.com', papel: 'owner', perfil_acesso: null, pode_ver: true, pode_editar: true },
-    { id: uid(), nome: 'Cristal Vendas', email: 'cristal@exemplo.com', papel: 'viewer', perfil_acesso: 'Comercial', pode_ver: true, pode_editar: true },
-    { id: uid(), nome: 'Bruno Expedição', email: 'bruno@exemplo.com', papel: 'viewer', perfil_acesso: 'Expedição', pode_ver: true, pode_editar: false },
-    { id: uid(), nome: null, email: 'financeiro@exemplo.com', papel: 'viewer', perfil_acesso: 'Financeiro', pode_ver: false, pode_editar: false },
-  ],
+  e_dono: () => true,
+  primeiro_acesso: () => false,
+  listar_empresas: () => empresas.map((e) => ({ ...e })),
+  salvar_empresa: ({ p }) => {
+    const x = (p ?? {}) as Row;
+    const existente = empresas.find((e) => e.id === x.id);
+    if (existente) { Object.assign(existente, x); return existente.id; }
+    const nova = { id: uid(), nome: x.nome, ativa: true, cnpj: null, telefone: null, site: null, criada_em: iso(new Date()), nivel: 'dono' };
+    empresas.push(nova);
+    return nova.id;
+  },
+  definir_empresa_ativa: ({ p_empresa, p_ativa }) => { const e = empresas.find((x) => x.id === p_empresa); if (e) e.ativa = p_ativa; return null; },
+  apagar_empresa: ({ p_empresa }) => { empresas.splice(empresas.findIndex((x) => x.id === p_empresa), 1); return null; },
+  listar_membros: ({ p_empresa }) => membros.filter((m) => m.empresa_id === p_empresa),
+  listar_usuarios: () => membros.filter((m) => m.empresa_id === EMP_A).map((m) => ({ id: m.user_id, nome: m.nome, email: m.email, nivel: m.nivel, ativo: m.ativo })),
+  criar_usuario: ({ p_empresa, p_email, p_nome, p_nivel }) => {
+    const id = uid();
+    membros.push({ empresa_id: p_empresa, user_id: id, nome: p_nome || null, email: String(p_email).toLowerCase(), nivel: p_nivel, ativo: true, criado_em: iso(new Date()), ultimo_acesso: null });
+    return id;
+  },
+  definir_nivel: ({ p_empresa, p_usuario, p_nivel }) => { const m = membros.find((x) => x.empresa_id === p_empresa && x.user_id === p_usuario); if (m) m.nivel = p_nivel; return null; },
+  definir_membro_ativo: ({ p_empresa, p_usuario, p_ativo }) => { const m = membros.find((x) => x.empresa_id === p_empresa && x.user_id === p_usuario); if (m) m.ativo = p_ativo; return null; },
+  redefinir_senha: () => null,
   segredos_preenchidos: () => ['octadesk_api_key', 'octadesk_usuario', 'octadesk_senha', 'octadesk_tenant'],
   pedir_sincronizacao: () => { integracao.sincronizacao_pedida_em = iso(new Date()); integracao.sincronizado_em = iso(new Date()); return null; },
   salvar_integracao: ({ p }) => {

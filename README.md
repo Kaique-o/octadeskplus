@@ -67,15 +67,17 @@ o Pages devolve o `index.html` e o React Router assume.
    pôr a URL do painel em Site URL e em Redirect URLs (links de confirmação e de redefinir senha); depois do
    primeiro acesso, desligar "Allow new users to sign up" (Add user/Invite no painel do Supabase continuam). Os gatilhos de conversa e o webhook externo funcionam; os detectores
    de vendas/créditos/curvas não acham nada até essas tabelas terem dados.
-2. **Permissões** — dono/superadmin do metrics já entram. Para outros perfis de acesso, adicionar o recurso
-   `octaplus` com as ações `ver` e/ou `editar`.
+2. **Empresas e usuários** — o primeiro login (tela **Primeiro acesso**) vira dono da plataforma. Em
+   Configurações › **Owner** ele cria as empresas e, em cada uma, adiciona usuários (senha provisória, nível "só vê"
+   ou "edita"), redefine senha e inativa. Cada empresa tem integração, automações e histórico próprios (RLS por
+   `empresa_id`); a empresa aberta no painel vai no header `x-empresa`.
 3. **n8n** — credencial Postgres "Supabase Postgres" apontando para o banco do metrics, depois:
    ```bash
    npm run n8n:build
    N8N_URL=... N8N_API_KEY=... npm run n8n:import
    ```
    Ativar os quatro fluxos.
-4. **Octadesk** — no painel, Configurações › Integrações: URL da API, e-mail do agente e chave. Em até um minuto
+4. **Octadesk** — com a empresa aberta no painel, Configurações › Integrações: URL da API, e-mail do agente e chave. Em até um minuto
    a integração valida e sincroniza números, templates, filas e tags. Para eventos de conversa, cadastrar no
    Octadesk a URL mostrada na mesma tela.
 

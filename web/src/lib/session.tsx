@@ -2,20 +2,21 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { DEMO, demoSession } from './demo';
+import { PermissaoCtx } from './permissao';
 
-// Usuários: auth.users + public.profiles + user_roles (os do metrics, ou os da base de um projeto próprio).
+// Usuários: auth.users + public.profiles. Dono da plataforma = papel 'owner' em public.user_roles.
 export interface Profile { id: string; email: string; full_name: string | null }
 
 interface SessionState {
   session: Session | null;
   profile: Profile | null;
-  podeVer: boolean;
-  podeEditar: boolean;
+  /** Dono da plataforma: vê todas as empresas e abre Configurações › Owner. */
+  eDono: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
 }
 
-const Ctx = createContext<SessionState>({ session: null, profile: null, podeVer: false, podeEditar: false, loading: true, refresh: async () => {} });
+const Ctx = createContext<SessionState>({ session: null, profile: null, eDono: false, loading: true, refresh: async () => {} });
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   if (DEMO) {
@@ -31,20 +32,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 function RealSessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [podeVer, setPodeVer] = useState(false);
-  const [podeEditar, setPodeEditar] = useState(false);
+  const [eDono, setEDono] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async (s: Session | null) => {
     setSession(s);
-    if (!s) { setProfile(null); setPodeVer(false); setPodeEditar(false); setLoading(false); return; }
-    const [{ data: p }, { data: ver }, { data: editar }] = await Promise.all([
+    if (!s) { setProfile(null); setEDono(false); setLoading(false); return; }
+    const [{ data: p }, { data: dono }] = await Promise.all([
       supabase.schema('public').from('profiles').select('id, email, full_name').eq('id', s.user.id).maybeSingle(),
-      supabase.rpc('pode', { p_acao: 'ver' }),
-      supabase.rpc('pode', { p_acao: 'editar' }),
+      supabase.rpc('e_dono'),
     ]);
     setProfile((p as Profile) ?? { id: s.user.id, email: s.user.email ?? '', full_name: null });
-    setPodeVer(Boolean(ver)); setPodeEditar(Boolean(editar));
+    setEDono(Boolean(dono));
     setLoading(false);
   }, []);
 
@@ -58,7 +57,8 @@ function RealSessionProvider({ children }: { children: ReactNode }) {
 
   const refresh = useCallback(async () => { const { data } = await supabase.auth.getSession(); await load(data.session); }, [load]);
 
-  return <Ctx.Provider value={{ session, profile, podeVer, podeEditar, loading, refresh }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ session, profile, eDono, loading, refresh }}>{children}</Ctx.Provider>;
 }
 
-export const useSession = () => useContext(Ctx);
+/** Sessão + o que o usuário pode na empresa atual (podeVer/podeEditar vêm do EmpresasProvider). */
+export const useSession = () => ({ ...useContext(Ctx), ...useContext(PermissaoCtx) });

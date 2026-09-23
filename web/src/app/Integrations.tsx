@@ -4,7 +4,7 @@ import { Alert, Spinner, StatusChip, Toggle } from '../components/ui';
 import { OctadeskMark } from '../components/LogoOctadesk';
 import SettingsTabs from './SettingsTabs';
 import { WEEKDAYS } from '../lib/constants';
-import { errorMessage, supabase, urlWebhookOctadesk } from '../lib/supabase';
+import { empresaGuardada, errorMessage, supabase, urlWebhookOctadesk } from '../lib/supabase';
 import { useSession } from '../lib/session';
 import type { Configuracao, Grupo, Integracao, MapaFila, Numero, Template } from '../lib/types';
 
@@ -145,8 +145,8 @@ function Catalogo({ config, onConfig }: { config: Configuracao; onConfig: () => 
   useEffect(() => { load(); }, [load]);
 
   const rotular = async (n: Numero, rotulo: string) => { await supabase.from('octa_numeros').update({ rotulo }).eq('id', n.id); };
-  const padrao = async (numero: string) => { await supabase.from('configuracao').update({ numero_envio_padrao: numero }).eq('id', true); onConfig(); };
-  const mapear = async (tipo: string, grupo_id: string) => { await supabase.from('mapa_filas').upsert({ tipo_entrega: tipo, grupo_id }, { onConflict: 'tipo_entrega' }); load(); };
+  const padrao = async (numero: string) => { await supabase.from('configuracao').update({ numero_envio_padrao: numero }).eq('empresa_id', empresaGuardada()!); onConfig(); };
+  const mapear = async (tipo: string, grupo_id: string) => { await supabase.from('mapa_filas').upsert({ tipo_entrega: tipo, grupo_id }, { onConflict: 'empresa_id,tipo_entrega' }); load(); };
   const tirar = async (tipo: string) => { await supabase.from('mapa_filas').delete().eq('tipo_entrega', tipo); load(); };
 
   return (
@@ -241,7 +241,7 @@ function RegrasEnvio({ config, onSalvo }: { config: Configuracao; onSalvo: () =>
     const { error } = await supabase.from('configuracao').update({
       horario_comercial: { perDay: dias }, limite_contato_horas: limite, atualizado_em: new Date().toISOString(),
       emails_alerta: emails.split(/[;,\s]+/).map((e) => e.trim()).filter(Boolean),
-    }).eq('id', true);
+    }).eq('empresa_id', empresaGuardada()!);
     setBusy(false);
     setAviso(error ? { kind: 'error', text: errorMessage(error) } : { kind: 'success', text: 'Regras de envio salvas.' });
     if (!error) onSalvo();

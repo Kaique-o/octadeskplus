@@ -166,10 +166,12 @@ Usuários lista os do metrics só para leitura (`listar_usuarios`); a aba **Não
 botão "Sincronizar" e a validação vão ao n8n **pelo banco** (`pedir_sincronizacao`), sem o navegador chamar
 o n8n direto.
 
-Escolha de empresa (22/09/2026): depois do login o painel pede a empresa (`/empresa`: SkyTech, Skyline). O
-**módulo adm** (`/adm`) cadastra empresas novas e só abre pelo código Konami (↑ ↑ ↓ ↓ ← → ← → B A) digitado na
-tela de escolha; o acesso dura até fechar a aba. Por enquanto a lista e a escolha ficam no navegador
-(`web/src/lib/empresas.tsx`) — o schema `octaplus` segue de uma empresa só, então trocar de empresa não separa dados.
+Multiempresa (24/09/2026): as empresas estão no banco (`octaplus.empresas`) e cada linha do schema tem `empresa_id`,
+com RLS pela empresa do header `x-empresa` + vínculo em `octaplus.membros` (`ver`/`editar`). O dono da plataforma
+gerencia empresas e usuários em Configurações › Owner; contas são criadas pelo banco no Auth. O motor é por empresa:
+o segredo do webhook do Octadesk escolhe a empresa, cada job leva as credenciais da própria empresa e a manutenção do
+n8n roda uma empresa por item. Empresa inativa não recebe eventos nem executa. O módulo adm e o código Konami saíram.
+Os detectores do metrics continuam lendo `public.*` compartilhado (hoje vazio no Supabase próprio).
 
 A análise original do Bridge da Favo (rotas, calibragem com a conta real) está em
 [docs/analise-bridge-favo.md](docs/analise-bridge-favo.md).

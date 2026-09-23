@@ -63,7 +63,7 @@ export default function Profile() {
       <section className="card max-w-xl p-5">
         <h2 className="font-semibold">Acesso ao Octadesk Plus</h2>
         <p className="mt-2 text-sm">{podeEditar ? 'Você pode criar e editar automações e configurações.' : 'Você pode ver tudo, mas não editar.'}</p>
-        <p className="mt-1 text-xs text-muted">Permissões vêm do perfil de acesso (recurso “octaplus”, ações “ver” e “editar”). Dono e superadmin têm acesso total.</p>
+        <p className="mt-1 text-xs text-muted">O acesso em cada empresa é definido pelo dono da plataforma, em Configurações › Owner.</p>
       </section>
     </div>
   );

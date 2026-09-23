@@ -72,11 +72,8 @@ export interface Integracao {
 }
 
 export interface Configuracao {
+  empresa_id: string;
   fuso: string;
-  empresa_nome: string | null;
-  empresa_cnpj: string | null;
-  empresa_telefone: string | null;
-  empresa_site: string | null;
   horario_comercial: { perDay: Record<string, { enabled: boolean; windows: { start: string; end: string }[] }> };
   numero_envio_padrao: string | null;
   emails_alerta: string[];

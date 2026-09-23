@@ -44,13 +44,20 @@ export const AJUDA: Record<string, { titulo: string; texto: string }> = {
   },
   '/app/configuracoes/empresa': {
     titulo: 'Empresa',
-    texto: 'Dados cadastrais da empresa e o fuso horário. O fuso é o que o horário comercial das regras de envio usa '
-      + 'para decidir se uma mensagem sai agora ou espera a próxima janela.',
+    texto: 'Dados cadastrais da empresa aberta agora e o fuso horário. O fuso é o que o horário comercial das regras de envio '
+      + 'usa para decidir se uma mensagem sai agora ou espera a próxima janela. O nome da empresa só o dono da plataforma muda.',
   },
   '/app/configuracoes/usuarios': {
     titulo: 'Usuários',
-    texto: 'Os usuários são os do metrics. "Edita" e "Só vê" vêm do perfil de acesso (recurso octaplus); dono e administrador '
-      + 'do metrics editam sempre. Convidar, remover e mudar permissões é feito no metrics.',
+    texto: 'Quem tem acesso a esta empresa e com que nível: "Edita" cria automações e mexe nas configurações; "Só vê" acompanha. '
+      + 'Adicionar pessoas, mudar o nível, redefinir senha e inativar é com o dono da plataforma, em Configurações › Owner.',
+  },
+  '/app/configuracoes/owner': {
+    titulo: 'Owner',
+    texto: 'Área do dono da plataforma. Cada empresa é isolada: integração do Octadesk, automações, números, histórico e chaves '
+      + 'de API são só dela. Inativar pausa tudo (não recebe eventos, não envia e os usuários dela perdem o acesso); apagar '
+      + 'remove a empresa com tudo o que tinha. Em cada empresa você adiciona usuários com senha provisória, escolhe se só '
+      + 'veem ou editam, redefine a senha e inativa quem saiu. A mesma pessoa pode ter acesso a mais de uma empresa.',
   },
   '/app/configuracoes/api': {
     titulo: 'API',
@@ -63,6 +70,7 @@ export const AJUDA: Record<string, { titulo: string; texto: string }> = {
   },
   '/app/perfil': {
     titulo: 'Meu perfil',
-    texto: 'Seu login é o do metrics: nome e senha alterados aqui valem lá também. Permissões ficam no perfil de acesso do metrics.',
+    texto: 'Seu nome e sua senha valem para todas as empresas em que você tem acesso. O nível de acesso em cada empresa é '
+      + 'definido pelo dono da plataforma.',
   },
 };

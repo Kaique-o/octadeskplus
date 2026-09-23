@@ -4,7 +4,7 @@ import { Alert, Spinner } from '../components/ui';
 import SettingsTabs from './SettingsTabs';
 import { errorMessage, supabase } from '../lib/supabase';
 import { useSession } from '../lib/session';
-import type { Configuracao } from '../lib/types';
+import { useEmpresas } from '../lib/empresas';
 
 const FUSOS = [
   { valor: 'America/Sao_Paulo', label: 'Brasília (GMT-3)' },
@@ -19,32 +19,37 @@ const mascaraCnpj = (v: string) => soDigitos(v).slice(0, 14)
   .replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
   .replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2');
 
-/** Dados da empresa (única) e fuso usado pelo horário comercial. Tudo na linha de octaplus.configuracao. */
+/** Dados da empresa aberta (octaplus.empresas) e o fuso do horário comercial (octaplus.configuracao). */
 export default function Empresa() {
-  const { podeEditar } = useSession();
+  const { podeEditar, eDono } = useSession();
+  const { atual, recarregar } = useEmpresas();
   const [form, setForm] = useState({ nome: '', cnpj: '', telefone: '', site: '', fuso: 'America/Sao_Paulo' });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [aviso, setAviso] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
 
   const load = useCallback(async () => {
-    const { data } = await supabase.from('configuracao').select('*').maybeSingle();
-    const c = data as Configuracao | null;
-    if (c) setForm({ nome: c.empresa_nome ?? '', cnpj: mascaraCnpj(c.empresa_cnpj ?? ''), telefone: c.empresa_telefone ?? '', site: c.empresa_site ?? '', fuso: c.fuso });
+    if (!atual) return;
+    const { data } = await supabase.from('configuracao').select('fuso').maybeSingle();
+    setForm({ nome: atual.nome, cnpj: mascaraCnpj(atual.cnpj ?? ''), telefone: atual.telefone ?? '', site: atual.site ?? '',
+      fuso: (data as { fuso: string } | null)?.fuso ?? 'America/Sao_Paulo' });
     setLoading(false);
-  }, []);
+  }, [atual]);
   useEffect(() => { load(); }, [load]);
 
   async function salvar() {
     const cnpj = soDigitos(form.cnpj);
     if (cnpj && cnpj.length !== 14) return setAviso({ kind: 'error', text: 'O CNPJ precisa ter 14 dígitos.' });
+    if (!form.nome.trim()) return setAviso({ kind: 'error', text: 'Informe o nome da empresa.' });
     setBusy(true);
-    const { error } = await supabase.from('configuracao').update({
-      empresa_nome: form.nome.trim() || null, empresa_cnpj: cnpj || null, empresa_telefone: form.telefone.trim() || null,
-      empresa_site: form.site.trim() || null, fuso: form.fuso, atualizado_em: new Date().toISOString(),
-    }).eq('id', true);
+    const [{ error }, { error: erroFuso }] = await Promise.all([
+      supabase.rpc('salvar_empresa', { p: { id: atual!.id, nome: form.nome.trim(), cnpj, telefone: form.telefone.trim(), site: form.site.trim() } }),
+      supabase.from('configuracao').update({ fuso: form.fuso, atualizado_em: new Date().toISOString() }).eq('empresa_id', atual!.id),
+    ]);
     setBusy(false);
-    setAviso(error ? { kind: 'error', text: errorMessage(error) } : { kind: 'success', text: 'Dados da empresa salvos.' });
+    if (error || erroFuso) return setAviso({ kind: 'error', text: errorMessage(error ?? erroFuso) });
+    setAviso({ kind: 'success', text: 'Dados da empresa salvos.' });
+    recarregar();
   }
 
   const campo = (k: keyof typeof form) => ({ value: form[k], disabled: !podeEditar, onChange: (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value }) });
@@ -62,7 +67,7 @@ export default function Empresa() {
             </div>
           </div>
           <div className="mt-5 grid gap-4 md:grid-cols-2">
-            <div className="md:col-span-2"><label className="label">Nome da empresa</label><input className="input" placeholder="Ex.: Grupo Skytech" {...campo('nome')} /></div>
+            <div className="md:col-span-2"><label className="label">Nome da empresa</label><input className="input" placeholder="Ex.: Grupo Skytech" {...campo('nome')} disabled={!eDono} title={eDono ? undefined : 'Só o dono da plataforma muda o nome'} /></div>
             <div>
               <label className="label">CNPJ</label>
               <input className="input tabular-nums" placeholder="00.000.000/0000-00" inputMode="numeric" value={form.cnpj} disabled={!podeEditar}

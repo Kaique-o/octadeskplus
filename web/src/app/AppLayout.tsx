@@ -10,7 +10,7 @@ import './sidebar.css';
 
 
 export default function AppLayout() {
-  const { profile, podeEditar, session } = useSession();
+  const { profile, podeEditar, session, eDono } = useSession();
   const [menuAberto, setMenuAberto] = useState(false);
   const [ajudaAberta, setAjudaAberta] = useState(false);
   const loc = useLocation();
@@ -22,7 +22,7 @@ export default function AppLayout() {
     ?? (loc.pathname === '/app' ? 'Início' : loc.pathname.startsWith('/app/perfil') ? 'Meu perfil' : 'Configurações');
   const usuario = {
     nome: profile?.full_name || session?.user.email || 'Usuário',
-    cargo: podeEditar ? 'Pode editar' : 'Somente leitura',
+    cargo: eDono ? 'Dono' : podeEditar ? 'Pode editar' : 'Somente leitura',
   };
 
   return (

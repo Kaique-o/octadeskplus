@@ -9,9 +9,13 @@ Plano, decisões e status das fases: [PLANO.md](PLANO.md).
 Sankhya, vendas, créditos, curvas ABC, alertas de comportamento, conversas do Octadesk e a classificação de IA
 delas), enviando pelo **Octadesk**. Nasceu como clone do Bridge da Favo e substitui esse serviço.
 
-- Uma empresa só. **Login, usuários e permissões são os do metrics** — não existe cadastro próprio. Num Supabase
-  próprio (`supabase/base/`), a base recria essas tabelas vazias e a tela de login oferece **Primeiro acesso**
-  só enquanto `octaplus.primeiro_acesso()` (única função liberada para `anon`) for verdadeira.
+- **Várias empresas no mesmo banco**, isoladas por RLS (`octaplus.empresas`; toda tabela tem `empresa_id`). O
+  **dono da plataforma** (papel `owner` em `public.user_roles`) vê todas e, em **Configurações › Owner**, cria,
+  inativa e apaga empresas e gerencia os usuários de cada uma (`octaplus.membros`: nível `ver`/`editar`, ativo).
+  As contas são criadas pelo banco direto no Auth (`criar_usuario`), sem cadastro público.
+- Num Supabase próprio (`supabase/base/`), a base recria vazias as tabelas do metrics que o octaplus lê; a tela de
+  login oferece **Primeiro acesso** (a conta vira dono) só enquanto `octaplus.primeiro_acesso()` — única função
+  liberada para `anon` — for verdadeira.
 - Gatilhos: detectores sobre as tabelas do metrics, webhooks de conversa do Octadesk e webhook externo
   (inclusive as campanhas do metrics, que usam o mesmo contrato `X-Bridge-Secret` do Bridge).
 - Sem site institucional, planos ou cobrança. Pipedrive, HubSpot, Zoho, Trello e YCloud foram descartados de
@@ -47,9 +51,9 @@ npm --prefix web run build    # tsc -b + vite build
 ```
 web/src/
   app/        telas do painel + sidebar (Sidebar, SidebarFooter, nav.ts, sidebar.css)
-  auth/       entrar e redefinir senha (usuários do metrics)
+  auth/       entrar, primeiro acesso, redefinir senha e escolher a empresa
   components/ ui.tsx, LogoOctadesk.tsx
-  lib/        supabase.ts (cliente no schema octaplus), session.tsx, types.ts, constants.ts, demo.ts
+  lib/        supabase.ts (cliente no schema octaplus + header x-empresa), session.tsx, empresas.tsx, types.ts, demo.ts
 supabase/migrations/   schema octaplus: tabelas, funções, RLS, pg_cron — em ordem lexicográfica
 supabase/tests/        stub das tabelas do metrics + testes em PGlite
 n8n/codigo/            JS dos Code nodes (fonte de verdade)
@@ -78,8 +82,11 @@ hora (respondeu / comprou).
    `salvar_integracao` e só o n8n lê, via `credenciais_octadesk()`.
 5. **Funções do motor têm `revoke execute ... from public, anon, authenticated`** no fim da migration 3.
    Função nova do motor entra nessa lista; função do painel checa `octaplus.pode('editar')` no topo.
-6. **Permissão é a do metrics**: `octaplus.pode(acao)` = `public.has_permission(auth.uid(), 'octaplus', acao)`,
-   ações `ver` e `editar`. Dono e superadmin passam sempre.
+6. **Permissão é por empresa.** O painel manda o header `x-empresa` (`lib/supabase.ts`); `empresa_atual()` lê o
+   header e `pode(acao)` = `pode_na(empresa_atual(), acao)`: dono sempre, os demais com vínculo ativo numa empresa
+   ativa. Policy padrão: `empresa_id = empresa_atual() and pode('ver')`. **Tabela nova do octaplus nasce com
+   `empresa_id ... default octaplus.empresa_atual()` e essa policy.** O motor nunca usa o header: recebe ou
+   descobre a empresa (automação, segredo do webhook do Octadesk, chave de API) e filtra por ela.
 7. **O navegador não chama o n8n.** Validar integração e sincronizar catálogo são pedidos pelo banco
    (`salvar_integracao`, `pedir_sincronizacao`); o fluxo de manutenção atende no próximo minuto.
 8. **Fila com `FOR UPDATE SKIP LOCKED`**; execução travada há 10 min volta; `pendente` retenta com backoff
@@ -88,8 +95,8 @@ hora (respondeu / comprou).
 9. **Horário comercial no formato do app original** — `perDay["0".."6"]` (0 = domingo) com lista de janelas.
 10. **Editar Code node é editar `n8n/codigo/*.js`** e rodar `npm run n8n:build`.
 11. **Menu vem de `web/src/app/nav.ts`**: principal só **Automações**; a **home** (banner + estatísticas) é pelo
-    logo; **Configurações** (rodapé) tem as abas Integrações · Empresa · Usuários · API · Não perturbe
-    (Usuários é só leitura, via `listar_usuarios()`); **Meu perfil** no card do
+    logo; **Configurações** (rodapé) tem as abas Integrações · Empresa · Usuários · API · Não perturbe · **Owner**
+    (Owner só para o dono; Usuários é só leitura, via `listar_usuarios()`); **Meu perfil** no card do
     usuário. Rota nova nasce com verbete em `AJUDA`.
 12. **Modo demonstração isolado** — `VITE_DEMO=1` troca o cliente Supabase por memória (`lib/demo.ts`), com o
     mesmo formato das tabelas `octaplus`. Nenhuma tela tem `if (DEMO)`.
