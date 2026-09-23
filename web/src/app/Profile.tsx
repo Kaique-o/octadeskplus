@@ -38,10 +38,9 @@ export default function Profile() {
       <PageHeader title="Meu perfil" subtitle="Seu nome e sua senha de acesso ao painel." />
       {aviso && <Alert kind={aviso.kind}>{aviso.text}</Alert>}
 
-      {atual && <div className="max-w-xl"><PlacaCargo tipo={atual.perfil_tipo} nome={atual.perfil} /></div>}
-
       <section className="card max-w-xl p-5">
         <h2 className="font-semibold">Meus dados</h2>
+        {atual && <div className="mt-4"><PlacaCargo tipo={atual.perfil_tipo} nome={atual.perfil} /></div>}
         <div className="mt-4 flex items-center gap-4">
           <FotoEditavel foto={profile?.foto} alt="Sua foto" tamanho="xl" redonda titulo="Sua foto"
             classeVazio="bg-ink text-white" vazio={<span className="font-title text-xl font-bold">{iniciaisDe(nome || session?.user.email || '')}</span>}
