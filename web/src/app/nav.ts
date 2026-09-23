@@ -1,4 +1,5 @@
 import { Workflow, type LucideIcon } from 'lucide-react';
+import type { Area } from '../lib/permissao';
 
 export interface NavItem {
   chave: string;
@@ -6,12 +7,14 @@ export interface NavItem {
   end?: boolean;
   icone: LucideIcon;
   label: string;
+  /** some do menu quando o perfil não vê esta área */
+  area: Area;
 }
 
 /** Itens do menu principal. A sidebar só mapeia esta lista.
  *  A tela inicial não entra aqui: chega-se a ela pelo logo. */
 export const NAV: NavItem[] = [
-  { chave: 'automacoes', to: '/app/automacoes', icone: Workflow, label: 'Automações' },
+  { chave: 'automacoes', to: '/app/automacoes', icone: Workflow, label: 'Automações', area: 'automacoes' },
 ];
 
 /** Ajuda por tela. Rota sem verbete deixa o botão "Ajuda" desabilitado, nunca escondido. */
@@ -49,15 +52,16 @@ export const AJUDA: Record<string, { titulo: string; texto: string }> = {
   },
   '/app/configuracoes/usuarios': {
     titulo: 'Usuários',
-    texto: 'Quem tem acesso a esta empresa e com que nível: "Edita" cria automações e mexe nas configurações; "Só vê" acompanha. '
-      + 'Adicionar pessoas, mudar o nível, redefinir senha e inativar é com o dono da plataforma, em Configurações › Owner.',
+    texto: 'Quem acessa esta empresa e com qual perfil. Quem tem "Usuários: edita" no perfil cria usuários com senha provisória e, '
+      + 'no ⋮ de cada um, edita nome e perfil, redefine a senha ou exclui (tira o acesso a esta empresa). O interruptor Ativo '
+      + 'suspende sem excluir. Em "Configurar perfis de acesso" você define, para cada área do painel, se o perfil não vê, só vê ou '
+      + 'edita. "Ver todos" lista todo mundo e exporta em CSV.',
   },
   '/app/configuracoes/owner': {
     titulo: 'Owner',
-    texto: 'Área do dono da plataforma. Cada empresa é isolada: integração do Octadesk, automações, números, histórico e chaves '
-      + 'de API são só dela. Inativar pausa tudo (não recebe eventos, não envia e os usuários dela perdem o acesso); apagar '
-      + 'remove a empresa com tudo o que tinha. Em cada empresa você adiciona usuários com senha provisória, escolhe se só '
-      + 'veem ou editam, redefine a senha e inativa quem saiu. A mesma pessoa pode ter acesso a mais de uma empresa.',
+    texto: 'Área do dono da plataforma. Cada empresa é isolada: integração do Octadesk, automações, números, histórico, chaves '
+      + 'de API, usuários e perfis são só dela. Inativar pausa tudo (não recebe eventos, não envia e os usuários dela perdem o '
+      + 'acesso); Editar e Apagar ficam no ⋮. Abaixo da empresa, os usuários e perfis dela, como na aba Usuários.',
   },
   '/app/configuracoes/api': {
     titulo: 'API',

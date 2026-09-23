@@ -2,10 +2,13 @@ import { useEffect, useState } from 'react';
 import { Alert, PageHeader, Spinner } from '../components/ui';
 import { errorMessage, supabase } from '../lib/supabase';
 import { useSession } from '../lib/session';
+import { useEmpresas } from '../lib/empresas';
+import { AREAS, NIVEIS, nivelDe } from '../lib/permissao';
 
 /** Dados do próprio usuário. Grava em public.profiles (no banco do metrics, muda lá também). */
 export default function Profile() {
-  const { session, profile, podeEditar, refresh } = useSession();
+  const { session, profile, refresh } = useSession();
+  const { atual } = useEmpresas();
   const [nome, setNome] = useState('');
   const [senha, setSenha] = useState({ nova: '', confirmar: '' });
   const [aviso, setAviso] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
@@ -62,8 +65,16 @@ export default function Profile() {
 
       <section className="card max-w-xl p-5">
         <h2 className="font-semibold">Acesso ao Octadesk Plus</h2>
-        <p className="mt-2 text-sm">{podeEditar ? 'Você pode criar e editar automações e configurações.' : 'Você pode ver tudo, mas não editar.'}</p>
-        <p className="mt-1 text-xs text-muted">O acesso em cada empresa é definido pelo dono da plataforma, em Configurações › Owner.</p>
+        <p className="mt-2 text-sm">Perfil em <b>{atual?.nome}</b>: <b>{atual?.perfil}</b></p>
+        <ul className="mt-3 grid gap-1 text-sm sm:grid-cols-2">
+          {AREAS.map((a) => (
+            <li key={a.chave} className="flex justify-between gap-3 rounded bg-fog px-3 py-1.5">
+              <span>{a.label}</span>
+              <span className="text-muted">{NIVEIS.find((n) => n.valor === nivelDe(atual?.permissoes ?? {}, a.chave))?.label}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-muted">O perfil de cada empresa é definido por quem gerencia os usuários dela.</p>
       </section>
     </div>
   );

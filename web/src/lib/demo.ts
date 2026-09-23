@@ -1,9 +1,9 @@
 /**
- * MODO DEMONSTRAÇÃO (VITE_DEMO=1)
+ * MODO DEMONSTRAÇÃO (VITE_DEMO=1, só em `npm run web:dev`)
  * Substitui o Supabase por dados em memória com o mesmo formato do schema `octaplus`.
- * Não tem login: a sessão já vem pronta. Nada aqui é usado quando VITE_DEMO está desligado.
+ * Não tem login: a sessão já vem pronta. Build publicado ignora VITE_DEMO e sempre exige login.
  */
-export const DEMO = String(import.meta.env.VITE_DEMO ?? '') === '1';
+export const DEMO = import.meta.env.DEV && String(import.meta.env.VITE_DEMO ?? '') === '1';
 
 const hoje = new Date();
 const dia = (d: number) => new Date(hoje.getTime() - d * 86400000);
@@ -22,15 +22,30 @@ type Row = Record<string, unknown>;
 // ---------------------------------------------------------------- empresas e usuários
 // Na demonstração as duas empresas mostram os mesmos dados de exemplo; o isolamento de verdade é do banco.
 const EMP_A = 'e0000000-0000-4000-8000-00000000000a';
+const AREAS_DEMO = ['automacoes', 'integracoes', 'empresa', 'usuarios', 'api', 'nao_perturbe'];
+const tudo = (nivel: string) => Object.fromEntries(AREAS_DEMO.map((a) => [a, nivel]));
+const DONO = { perfil: 'Dono', permissoes: tudo('editar') };
 const empresas: Row[] = [
-  { id: EMP_A, nome: 'SkyTech', ativa: true, cnpj: '12345678000190', telefone: '(11) 94960-2880', site: 'https://gruposkytech.com', criada_em: iso(dia(90)), nivel: 'dono' },
-  { id: 'e0000000-0000-4000-8000-00000000000b', nome: 'Skyline', ativa: true, cnpj: null, telefone: null, site: null, criada_em: iso(dia(20)), nivel: 'dono' },
+  { id: EMP_A, nome: 'SkyTech', ativa: true, cnpj: '12345678000190', telefone: '(11) 94960-2880', site: 'https://gruposkytech.com', fuso: 'America/Sao_Paulo', criada_em: iso(dia(90)), ...DONO },
+  { id: 'e0000000-0000-4000-8000-00000000000b', nome: 'Skyline', ativa: true, cnpj: null, telefone: null, site: null, fuso: 'America/Manaus', criada_em: iso(dia(20)), ...DONO },
 ];
+const perfisPadrao = (empresa_id: unknown): Row[] => [
+  { id: uid(), empresa_id, nome: 'Administrador', permissoes: tudo('editar') },
+  { id: uid(), empresa_id, nome: 'Edita', permissoes: { ...tudo('editar'), usuarios: 'ver' } },
+  { id: uid(), empresa_id, nome: 'Só vê', permissoes: tudo('ver') },
+];
+const perfis: Row[] = empresas.flatMap((e) => perfisPadrao(e.id));
+const perfilDe = (empresa: unknown, nome: string) => perfis.find((p) => p.empresa_id === empresa && p.nome === nome)!.id;
 const membros: Row[] = [
-  { empresa_id: EMP_A, user_id: uid(), nome: 'Cristal Vendas', email: 'cristal@exemplo.com', nivel: 'editar', ativo: true, criado_em: iso(dia(60)), ultimo_acesso: iso(dia(0)) },
-  { empresa_id: EMP_A, user_id: uid(), nome: 'Bruno Expedição', email: 'bruno@exemplo.com', nivel: 'ver', ativo: true, criado_em: iso(dia(40)), ultimo_acesso: iso(dia(3)) },
-  { empresa_id: EMP_A, user_id: uid(), nome: null, email: 'financeiro@exemplo.com', nivel: 'ver', ativo: false, criado_em: iso(dia(80)), ultimo_acesso: null },
+  { empresa_id: EMP_A, user_id: uid(), nome: 'Cristal Vendas', email: 'cristal@exemplo.com', perfil_id: perfilDe(EMP_A, 'Edita'), ativo: true, criado_em: iso(dia(60)), ultimo_acesso: iso(dia(0)), outras_empresas: 0 },
+  { empresa_id: EMP_A, user_id: uid(), nome: 'Bruno Expedição', email: 'bruno@exemplo.com', perfil_id: perfilDe(EMP_A, 'Só vê'), ativo: true, criado_em: iso(dia(40)), ultimo_acesso: iso(dia(3)), outras_empresas: 1 },
+  { empresa_id: EMP_A, user_id: uid(), nome: null, email: 'financeiro@exemplo.com', perfil_id: perfilDe(EMP_A, 'Só vê'), ativo: false, criado_em: iso(dia(80)), ultimo_acesso: null, outras_empresas: 0 },
+  ...Array.from({ length: 16 }, (_, i) => ({
+    empresa_id: EMP_A, user_id: uid(), nome: `Vendedor ${String(i + 1).padStart(2, '0')}`, email: `vendedor${i + 1}@exemplo.com`,
+    perfil_id: perfilDe(EMP_A, 'Só vê'), ativo: true, criado_em: iso(dia(30 - i)), ultimo_acesso: iso(dia(i % 5)), outras_empresas: 0,
+  })),
 ];
+const comPerfil = (m: Row) => ({ ...m, perfil: perfis.find((p) => p.id === m.perfil_id)?.nome ?? '' });
 
 // ---------------------------------------------------------------- configuração e integração
 const configuracao: Row = {
@@ -214,22 +229,45 @@ const rpcs: Record<string, (args: Record<string, unknown>) => unknown> = {
     const x = (p ?? {}) as Row;
     const existente = empresas.find((e) => e.id === x.id);
     if (existente) { Object.assign(existente, x); return existente.id; }
-    const nova = { id: uid(), nome: x.nome, ativa: true, cnpj: null, telefone: null, site: null, criada_em: iso(new Date()), nivel: 'dono' };
+    const nova = { cnpj: null, telefone: null, site: null, fuso: 'America/Sao_Paulo', ...x, id: uid(), ativa: true, criada_em: iso(new Date()), ...DONO };
     empresas.push(nova);
+    perfis.push(...perfisPadrao(nova.id));
     return nova.id;
   },
   definir_empresa_ativa: ({ p_empresa, p_ativa }) => { const e = empresas.find((x) => x.id === p_empresa); if (e) e.ativa = p_ativa; return null; },
   apagar_empresa: ({ p_empresa }) => { empresas.splice(empresas.findIndex((x) => x.id === p_empresa), 1); return null; },
-  listar_membros: ({ p_empresa }) => membros.filter((m) => m.empresa_id === p_empresa),
-  listar_usuarios: () => membros.filter((m) => m.empresa_id === EMP_A).map((m) => ({ id: m.user_id, nome: m.nome, email: m.email, nivel: m.nivel, ativo: m.ativo })),
-  criar_usuario: ({ p_empresa, p_email, p_nome, p_nivel }) => {
+  listar_membros: ({ p_empresa }) => membros.filter((m) => m.empresa_id === p_empresa).map(comPerfil),
+  listar_usuarios: () => membros.filter((m) => m.empresa_id === EMP_A).map(comPerfil),
+  criar_usuario: ({ p_empresa, p_email, p_nome, p_perfil }) => {
     const id = uid();
-    membros.push({ empresa_id: p_empresa, user_id: id, nome: p_nome || null, email: String(p_email).toLowerCase(), nivel: p_nivel, ativo: true, criado_em: iso(new Date()), ultimo_acesso: null });
+    membros.push({ empresa_id: p_empresa, user_id: id, nome: p_nome || null, email: String(p_email).toLowerCase(), perfil_id: p_perfil, ativo: true, criado_em: iso(new Date()), ultimo_acesso: null, outras_empresas: 0 });
     return id;
   },
-  definir_nivel: ({ p_empresa, p_usuario, p_nivel }) => { const m = membros.find((x) => x.empresa_id === p_empresa && x.user_id === p_usuario); if (m) m.nivel = p_nivel; return null; },
   definir_membro_ativo: ({ p_empresa, p_usuario, p_ativo }) => { const m = membros.find((x) => x.empresa_id === p_empresa && x.user_id === p_usuario); if (m) m.ativo = p_ativo; return null; },
   redefinir_senha: () => null,
+  editar_membro: ({ p_empresa, p_usuario, p_nome, p_perfil }) => {
+    const m = membros.find((x) => x.empresa_id === p_empresa && x.user_id === p_usuario);
+    if (m) Object.assign(m, { nome: String(p_nome ?? '').trim() || null, perfil_id: p_perfil });
+    return null;
+  },
+  listar_perfis: ({ p_empresa }) => perfis.filter((p) => p.empresa_id === p_empresa)
+    .map((p): Row => ({ ...p, usuarios: membros.filter((m) => m.perfil_id === p.id).length }))
+    .sort((a, b) => String(a.nome).localeCompare(String(b.nome))),
+  salvar_perfil: ({ p_empresa, p }) => {
+    const x = (p ?? {}) as Row;
+    const permissoes = Object.fromEntries(AREAS_DEMO.map((a) => [a, (x.permissoes as Row | undefined)?.[a] ?? 'nenhum']));
+    const existente = perfis.find((y) => y.id === x.id);
+    if (existente) { Object.assign(existente, { nome: x.nome, permissoes }); return existente.id; }
+    const novo = { id: uid(), empresa_id: p_empresa, nome: x.nome, permissoes };
+    perfis.push(novo);
+    return novo.id;
+  },
+  apagar_perfil: ({ p_perfil }) => { perfis.splice(perfis.findIndex((x) => x.id === p_perfil), 1); return null; },
+  remover_membro: ({ p_empresa, p_usuario }) => {
+    const i = membros.findIndex((x) => x.empresa_id === p_empresa && x.user_id === p_usuario);
+    if (i >= 0) membros.splice(i, 1);
+    return null;
+  },
   segredos_preenchidos: () => ['octadesk_api_key', 'octadesk_usuario', 'octadesk_senha', 'octadesk_tenant'],
   pedir_sincronizacao: () => { integracao.sincronizacao_pedida_em = iso(new Date()); integracao.sincronizado_em = iso(new Date()); return null; },
   salvar_integracao: ({ p }) => {

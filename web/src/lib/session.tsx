@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import { DEMO, demoSession } from './demo';
-import { PermissaoCtx } from './permissao';
 
 // Usuários: auth.users + public.profiles. Dono da plataforma = papel 'owner' em public.user_roles.
 export interface Profile { id: string; email: string; full_name: string | null }
@@ -60,5 +59,5 @@ function RealSessionProvider({ children }: { children: ReactNode }) {
   return <Ctx.Provider value={{ session, profile, eDono, loading, refresh }}>{children}</Ctx.Provider>;
 }
 
-/** Sessão + o que o usuário pode na empresa atual (podeVer/podeEditar vêm do EmpresasProvider). */
-export const useSession = () => ({ ...useContext(Ctx), ...useContext(PermissaoCtx) });
+/** Sessão do usuário. O que ele pode em cada área da empresa aberta vem de usePode(area) (lib/permissao.ts). */
+export const useSession = () => useContext(Ctx);

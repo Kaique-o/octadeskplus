@@ -16,7 +16,9 @@ import Automations from './app/Automations';
 import AutomationWizard from './app/AutomationWizard';
 import Profile from './app/Profile';
 import Owner from './app/Owner';
-import { Spinner } from './components/ui';
+import { EmptyState, Spinner } from './components/ui';
+import { ShieldOff } from 'lucide-react';
+import { usePode, type Area } from './lib/permissao';
 
 // Só entra logado. Quem não tem nenhuma empresa liberada vê "Sem acesso" na tela de escolha.
 function RequireAuth({ children }: { children: ReactNode }) {
@@ -31,6 +33,13 @@ function RequireAuth({ children }: { children: ReactNode }) {
 function RequireDono({ children }: { children: ReactNode }) {
   const { eDono } = useSession();
   return eDono ? <>{children}</> : <Navigate to="/app/configuracoes" replace />;
+}
+
+// Área que o perfil não libera: a tela nem carrega.
+function RequireArea({ area, children }: { area: Area; children: ReactNode }) {
+  const { podeVer } = usePode(area);
+  if (podeVer) return <>{children}</>;
+  return <EmptyState icon={<ShieldOff />} title="Sem acesso" text="Seu perfil de acesso nesta empresa não libera esta área. Fale com quem gerencia os usuários da empresa." />;
 }
 
 // Sem empresa escolhida, passa antes pela tela de escolha.
@@ -51,14 +60,14 @@ export default function App() {
       <Route path="/empresa" element={<RequireAuth><EscolherEmpresa /></RequireAuth>} />
       <Route path="/app" element={<RequireAuth><RequireEmpresa><AppLayout /></RequireEmpresa></RequireAuth>}>
         <Route index element={<Home />} />
-        <Route path="automacoes" element={<Automations />} />
-        <Route path="automacoes/nova" element={<AutomationWizard />} />
-        <Route path="automacoes/:id" element={<AutomationWizard />} />
-        <Route path="configuracoes" element={<Integrations />} />
-        <Route path="configuracoes/empresa" element={<Empresa />} />
-        <Route path="configuracoes/usuarios" element={<Usuarios />} />
-        <Route path="configuracoes/api" element={<ApiKeys />} />
-        <Route path="configuracoes/nao-perturbe" element={<NaoPerturbe />} />
+        <Route path="automacoes" element={<RequireArea area="automacoes"><Automations /></RequireArea>} />
+        <Route path="automacoes/nova" element={<RequireArea area="automacoes"><AutomationWizard /></RequireArea>} />
+        <Route path="automacoes/:id" element={<RequireArea area="automacoes"><AutomationWizard /></RequireArea>} />
+        <Route path="configuracoes" element={<RequireArea area="integracoes"><Integrations /></RequireArea>} />
+        <Route path="configuracoes/empresa" element={<RequireArea area="empresa"><Empresa /></RequireArea>} />
+        <Route path="configuracoes/usuarios" element={<RequireArea area="usuarios"><Usuarios /></RequireArea>} />
+        <Route path="configuracoes/api" element={<RequireArea area="api"><ApiKeys /></RequireArea>} />
+        <Route path="configuracoes/nao-perturbe" element={<RequireArea area="nao_perturbe"><NaoPerturbe /></RequireArea>} />
         <Route path="configuracoes/owner" element={<RequireDono><Owner /></RequireDono>} />
         <Route path="perfil" element={<Profile />} />
         {/* rotas antigas continuam funcionando */}

@@ -6,11 +6,13 @@ import { Modal } from '../components/ui';
 import { AJUDA, NAV } from './nav';
 import { supabase } from '../lib/supabase';
 import { useSession } from '../lib/session';
+import { useEmpresas } from '../lib/empresas';
 import './sidebar.css';
 
 
 export default function AppLayout() {
-  const { profile, podeEditar, session, eDono } = useSession();
+  const { profile, session } = useSession();
+  const { atual } = useEmpresas();
   const [menuAberto, setMenuAberto] = useState(false);
   const [ajudaAberta, setAjudaAberta] = useState(false);
   const loc = useLocation();
@@ -22,7 +24,7 @@ export default function AppLayout() {
     ?? (loc.pathname === '/app' ? 'Início' : loc.pathname.startsWith('/app/perfil') ? 'Meu perfil' : 'Configurações');
   const usuario = {
     nome: profile?.full_name || session?.user.email || 'Usuário',
-    cargo: eDono ? 'Dono' : podeEditar ? 'Pode editar' : 'Somente leitura',
+    cargo: atual?.perfil ?? '',
   };
 
   return (

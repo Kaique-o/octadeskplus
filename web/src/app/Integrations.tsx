@@ -5,7 +5,7 @@ import { OctadeskMark } from '../components/LogoOctadesk';
 import SettingsTabs from './SettingsTabs';
 import { WEEKDAYS } from '../lib/constants';
 import { empresaGuardada, errorMessage, supabase, urlWebhookOctadesk } from '../lib/supabase';
-import { useSession } from '../lib/session';
+import { usePode } from '../lib/permissao';
 import type { Configuracao, Grupo, Integracao, MapaFila, Numero, Template } from '../lib/types';
 
 type Aviso = { kind: 'success' | 'error'; text: string } | null;
@@ -40,7 +40,7 @@ function Copiar({ valor }: { valor: string }) {
 
 // ---------------------------------------------------------------- Octadesk
 function CardOctadesk({ integracao, onMudou }: { integracao: Integracao; onMudou: () => void }) {
-  const { podeEditar } = useSession();
+  const { podeEditar } = usePode('integracoes');
   const [form, setForm] = useState({
     base_url: integracao.base_url ?? '', agente_email: integracao.agente_email ?? '', subdominio: integracao.subdominio ?? '',
     api_privada_ativa: integracao.api_privada_ativa, api_key: '', usuario: '', senha: '', tenant: '',
@@ -125,7 +125,7 @@ function CardOctadesk({ integracao, onMudou }: { integracao: Integracao; onMudou
 
 // ---------------------------------------------------------------- números, templates e filas
 function Catalogo({ config, onConfig }: { config: Configuracao; onConfig: () => void }) {
-  const { podeEditar } = useSession();
+  const { podeEditar } = usePode('integracoes');
   const [numeros, setNumeros] = useState<Numero[]>([]);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [grupos, setGrupos] = useState<Grupo[]>([]);
@@ -219,7 +219,7 @@ interface Dia { enabled: boolean; windows: Janela[] }
 const JANELA_PADRAO: Janela = { start: '08:00', end: '18:00' };
 
 function RegrasEnvio({ config, onSalvo }: { config: Configuracao; onSalvo: () => void }) {
-  const { podeEditar } = useSession();
+  const { podeEditar } = usePode('integracoes');
   const [dias, setDias] = useState<Record<string, Dia>>(config.horario_comercial?.perDay ?? {});
   const [limite, setLimite] = useState(config.limite_contato_horas);
   const [emails, setEmails] = useState((config.emails_alerta ?? []).join('; '));

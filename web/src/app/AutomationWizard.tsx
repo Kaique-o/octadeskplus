@@ -4,7 +4,7 @@ import { ArrowLeft, Check, ChevronDown, ChevronUp, Copy, Plus, RefreshCw, Trash2
 import { Alert, OptionCard, Spinner, Toggle } from '../components/ui';
 import { ACOES, CAMPOS_CLIENTE, FONTES, GATILHOS, OPERADORES, POLITICAS_CONVERSA, UNIDADES, type Parametro } from '../lib/constants';
 import { errorMessage, supabase, urlWebhookExterno } from '../lib/supabase';
-import { useSession } from '../lib/session';
+import { usePode } from '../lib/permissao';
 import type { Acao, Automacao, Condicao, Fonte, Gatilho, Grupo, Numero, Tag, Template, TipoAcao, Unidade } from '../lib/types';
 
 interface Campo { key: string; label: string }
@@ -256,7 +256,7 @@ function EditorAcao({ i, total, acao, campos, catalogo, apiPrivada, onChange, on
 export default function AutomationWizard() {
   const { id } = useParams();
   const nav = useNavigate();
-  const { podeEditar } = useSession();
+  const { podeEditar } = usePode('automacoes');
   const [a, setA] = useState<Automacao>(VAZIA);
   const [acoes, setAcoes] = useState<Acao[]>([novaAcao()]);
   const [catalogo, setCatalogo] = useState({ numeros: [] as Numero[], templates: [] as Template[], grupos: [] as Grupo[], tags: [] as Tag[] });

@@ -1,12 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { definirEmpresaAtual, empresaGuardada, supabase } from './supabase';
 import { useSession } from './session';
-import { PermissaoCtx, type Permissao } from './permissao';
+import { PermissaoCtx, type Permissoes } from './permissao';
 
-/** Empresa que o usuário pode abrir, com o nível dele nela ('dono' = dono da plataforma). */
+/** Empresa que o usuário pode abrir, com o perfil dele nela ('Dono' = dono da plataforma, tudo liberado). */
 export interface Empresa {
   id: string; nome: string; ativa: boolean; cnpj: string | null; telefone: string | null; site: string | null;
-  criada_em: string; nivel: 'dono' | 'editar' | 'ver';
+  fuso: string | null; criada_em: string; perfil: string; permissoes: Permissoes;
 }
 
 interface EmpresasState {
@@ -52,14 +52,10 @@ export function EmpresasProvider({ children }: { children: ReactNode }) {
     recarregar,
   }), [empresas, carregando, atual, recarregar]);
 
-  const permissao = useMemo<Permissao>(() => ({
-    podeVer: Boolean(atual),
-    podeEditar: atual?.nivel === 'dono' || atual?.nivel === 'editar',
-  }), [atual]);
 
   return (
     <Ctx.Provider value={valor}>
-      <PermissaoCtx.Provider value={permissao}>{children}</PermissaoCtx.Provider>
+      <PermissaoCtx.Provider value={atual?.permissoes ?? {}}>{children}</PermissaoCtx.Provider>
     </Ctx.Provider>
   );
 }

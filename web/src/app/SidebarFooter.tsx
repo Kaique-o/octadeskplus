@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
-import { Link, NavLink } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ArrowLeftRight, ChevronDown, HelpCircle, LogOut, Settings, UserCircle2 } from 'lucide-react';
 import { useEmpresas } from '../lib/empresas';
+import { useSession } from '../lib/session';
+import { usePermissoes } from '../lib/permissao';
+import { destinoConfiguracoes } from './SettingsTabs';
 
 export interface FooterUsuario {
   nome: string;
@@ -28,6 +31,9 @@ const iniciais = (nome: string) => {
 export default function SidebarFooter({ usuario, onAjuda, onSair, onNavegar }: Props) {
   const [aberto, setAberto] = useState(false);
   const { atual, sair: sairDaEmpresa } = useEmpresas();
+  const { eDono } = useSession();
+  const configuracoes = destinoConfiguracoes(usePermissoes(), eDono);
+  const emConfiguracoes = useLocation().pathname.startsWith('/app/configuracoes');
   const card = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,10 +55,10 @@ export default function SidebarFooter({ usuario, onAjuda, onSair, onNavegar }: P
         Ajuda
       </button>
 
-      <NavLink to="/app/configuracoes" className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`} onClick={onNavegar}>
+      {configuracoes && <Link to={configuracoes} className={`nav-item${emConfiguracoes ? ' active' : ''}`} onClick={onNavegar}>
         <Settings size={20} strokeWidth={1.8} />
         Configurações
-      </NavLink>
+      </Link>}
 
       <div
         ref={card} className="sidebar-user" role="button" tabIndex={0}
@@ -71,9 +77,9 @@ export default function SidebarFooter({ usuario, onAjuda, onSair, onNavegar }: P
           <Link to="/app/perfil" className="user-menu-item" onClick={onNavegar}>
             <UserCircle2 size={16} strokeWidth={1.8} />Meu perfil
           </Link>
-          <Link to="/app/configuracoes" className="user-menu-item" onClick={onNavegar}>
+          {configuracoes && <Link to={configuracoes} className="user-menu-item" onClick={onNavegar}>
             <Settings size={16} strokeWidth={1.8} />Configurações
-          </Link>
+          </Link>}
           <button type="button" className="user-menu-item" onClick={() => { onNavegar(); sairDaEmpresa(); }}>
             <ArrowLeftRight size={16} strokeWidth={1.8} />Trocar empresa
           </button>

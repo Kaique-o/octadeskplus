@@ -3,12 +3,12 @@ import { Check, Copy, KeyRound, Plus } from 'lucide-react';
 import { Alert, EmptyState, Modal, Spinner } from '../components/ui';
 import SettingsTabs from './SettingsTabs';
 import { N8N_WEBHOOK_URL, errorMessage, supabase } from '../lib/supabase';
-import { useSession } from '../lib/session';
+import { usePode } from '../lib/permissao';
 
 interface ApiKey { id: string; nome: string; prefixo: string; usado_em: string | null; revogada_em: string | null; criado_em: string }
 
 export default function ApiKeys() {
-  const { podeEditar: canEdit } = useSession();
+  const { podeEditar: canEdit } = usePode('api');
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);

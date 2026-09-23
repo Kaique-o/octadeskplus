@@ -4,12 +4,14 @@ import { Alert, EmptyState, Spinner } from '../components/ui';
 import SettingsTabs from './SettingsTabs';
 import { errorMessage, supabase } from '../lib/supabase';
 import { useSession } from '../lib/session';
+import { usePode } from '../lib/permissao';
 
 interface Bloqueio { id: string; telefone: string | null; client_id: string | null; motivo: string | null; criado_em: string }
 
 /** Lista de quem não recebe mensagem de nenhuma automação (opt-out). O banco confere antes de agendar. */
 export default function NaoPerturbe() {
-  const { podeEditar, session } = useSession();
+  const { session } = useSession();
+  const { podeEditar } = usePode('nao_perturbe');
   const [itens, setItens] = useState<Bloqueio[]>([]);
   const [loading, setLoading] = useState(true);
   const [telefone, setTelefone] = useState('');

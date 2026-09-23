@@ -5,7 +5,7 @@ import { Archive, ArchiveRestore, ChevronDown, ChevronLeft, ChevronRight, Copy, 
 import { EmptyState, Modal, PageHeader, Spinner, Toggle } from '../components/ui';
 import { ACOES, FONTES, GATILHOS, POLITICAS_CONVERSA, UNIDADES } from '../lib/constants';
 import { errorMessage, supabase } from '../lib/supabase';
-import { useSession } from '../lib/session';
+import { usePode } from '../lib/permissao';
 import { baixarCsv } from '../lib/csv';
 import type { Acao, Automacao, Template } from '../lib/types';
 
@@ -201,7 +201,7 @@ const POR_PAGINA = 10;
 
 export default function Automations() {
   const nav = useNavigate();
-  const { podeEditar } = useSession();
+  const { podeEditar } = usePode('automacoes');
   const [itens, setItens] = useState<Automacao[]>([]);
   // ordem da lista: ativas primeiro, depois pausadas. Fixada na carga, para ligar/pausar não fazer o card pular de página.
   const [ordem, setOrdem] = useState<string[]>([]);

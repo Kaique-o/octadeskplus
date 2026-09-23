@@ -4,6 +4,7 @@ import SidebarFooter, { type FooterUsuario } from './SidebarFooter';
 import { Logo } from '../components/ui';
 import { NAV } from './nav';
 import { BRAND } from '../lib/constants';
+import { nivelDe, usePermissoes } from '../lib/permissao';
 
 interface Props {
   usuario: FooterUsuario;
@@ -16,6 +17,7 @@ interface Props {
 }
 
 export default function Sidebar({ usuario, onAjuda, onSair, onNavegar, onVoltar }: Props) {
+  const permissoes = usePermissoes();
   return (
     <aside className="sidebar">
       <div className={`brand-linha${onVoltar ? '' : ' brand-linha--solo'}`}>
@@ -30,7 +32,7 @@ export default function Sidebar({ usuario, onAjuda, onSair, onNavegar, onVoltar 
       </div>
 
       <nav className="nav" aria-label="menu principal">
-        {NAV.map(({ chave, to, end, icone: Icone, label }) => (
+        {NAV.filter((i) => nivelDe(permissoes, i.area) !== 'nenhum').map(({ chave, to, end, icone: Icone, label }) => (
           <NavLink key={chave} to={to} end={end} onClick={onNavegar}
             className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}>
             <Icone size={20} strokeWidth={1.8} />

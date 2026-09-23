@@ -38,7 +38,7 @@ npm test                      # testes do banco + dos Code nodes
 npm --prefix web install
 npm run web:dev               # painel em http://localhost:5173
 ```
-`web/.env.local` com `VITE_DEMO=1` abre o painel direto, com dados em memória. Para usar de verdade, tire o
+`web/.env.local` com `VITE_DEMO=1` abre o painel direto, com dados em memória — só no `web:dev`; o build publicado ignora e sempre exige login. Para usar de verdade, tire o
 `VITE_DEMO` e preencha `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (do Supabase do metrics) e
 `VITE_N8N_WEBHOOK_URL`.
 
@@ -51,7 +51,7 @@ No painel da Cloudflare: **Workers & Pages › Create › Pages › Connect to G
 | Root directory | `web` |
 | Build command | `npm run build` |
 | Build output directory | `dist` |
-| Variáveis de ambiente | `VITE_DEMO` = `1` para a demonstração; para usar de verdade, no lugar dela: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` e `VITE_N8N_WEBHOOK_URL` |
+| Variáveis de ambiente | `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` e `VITE_N8N_WEBHOOK_URL` (`VITE_DEMO` não vale em build publicado) |
 
 As variáveis `VITE_*` entram **no build** (o Vite grava no JavaScript): mudou uma, é preciso refazer o deploy.
 A versão do Node vem de `web/.node-version`. Rotas como `/app/automacoes` funcionam porque, sem `404.html`,
@@ -68,8 +68,8 @@ o Pages devolve o `index.html` e o React Router assume.
    primeiro acesso, desligar "Allow new users to sign up" (Add user/Invite no painel do Supabase continuam). Os gatilhos de conversa e o webhook externo funcionam; os detectores
    de vendas/créditos/curvas não acham nada até essas tabelas terem dados.
 2. **Empresas e usuários** — o primeiro login (tela **Primeiro acesso**) vira dono da plataforma. Em
-   Configurações › **Owner** ele cria as empresas e, em cada uma, adiciona usuários (senha provisória, nível "só vê"
-   ou "edita"), redefine senha e inativa. Cada empresa tem integração, automações e histórico próprios (RLS por
+   Configurações › **Owner** ele cria as empresas e, em cada uma, cria usuários (senha provisória) com um perfil de acesso
+   por área (não vê / só vê / edita); quem tem "Usuários: edita" gerencia os usuários da própria empresa. Cada empresa tem integração, automações e histórico próprios (RLS por
    `empresa_id`); a empresa aberta no painel vai no header `x-empresa`.
 3. **n8n** — credencial Postgres "Supabase Postgres" apontando para o banco do metrics, depois:
    ```bash

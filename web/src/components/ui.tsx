@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { Loader2, X } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Loader2, MoreVertical, X } from 'lucide-react';
 import { OctadeskLogo } from './LogoOctadesk';
 
 /** Marca da Octadesk seguida do "+". Em fundo escuro, `light` pinta tudo de branco. */
@@ -116,6 +116,31 @@ export function EmptyState({ icon, title, text, action }: { icon: ReactNode; tit
       <h3 className="font-title text-lg font-semibold">{title}</h3>
       <p className="mt-1 max-w-sm text-sm text-muted">{text}</p>
       {action && <div className="mt-5">{action}</div>}
+    </div>
+  );
+}
+
+export interface ItemMenu { label: string; icone: ReactNode; perigo?: boolean; onClick: () => void }
+
+/** Botão ⋮ com as ações de uma linha (fecha ao escolher ou clicar fora). */
+export function MenuAcoes({ rotulo, itens }: { rotulo: string; itens: ItemMenu[] }) {
+  const [aberto, setAberto] = useState(false);
+  return (
+    <div className="relative inline-block text-left">
+      <button className="btn-ghost px-2 py-2" onClick={() => setAberto(!aberto)} aria-label={rotulo} aria-expanded={aberto}><MoreVertical className="h-4 w-4" /></button>
+      {aberto && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setAberto(false)} />
+          <div className="card absolute right-0 z-20 mt-1 w-48 overflow-hidden py-1 text-sm shadow-lg">
+            {itens.map((i) => (
+              <button key={i.label} className={`flex w-full items-center gap-2 px-3 py-2 ${i.perigo ? 'text-danger hover:bg-red-50' : 'hover:bg-fog'}`}
+                onClick={() => { setAberto(false); i.onClick(); }}>
+                {i.icone}{i.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -1,63 +1,29 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, KeyRound, Plus, Trash2, UserPlus, Users } from 'lucide-react';
-import { Alert, EmptyState, Modal, Spinner, Toggle } from '../components/ui';
+import { Building2, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Alert, EmptyState, MenuAcoes, Modal, Spinner, Toggle } from '../components/ui';
 import SettingsTabs from './SettingsTabs';
+import GestaoUsuarios from './GestaoUsuarios';
 import { errorMessage, supabase } from '../lib/supabase';
 import { useEmpresas, type Empresa } from '../lib/empresas';
+import CamposEmpresa, { dadosIniciais, paraSalvar, validarEmpresa, type DadosEmpresa } from './FormEmpresa';
 
-interface Membro {
-  user_id: string; nome: string | null; email: string; nivel: 'ver' | 'editar'; ativo: boolean;
-  criado_em: string; ultimo_acesso: string | null;
-}
+type Janela = { tipo: 'empresa' } | { tipo: 'editar'; empresa: Empresa } | { tipo: 'apagar'; empresa: Empresa } | null;
 
-type Janela =
-  | { tipo: 'empresa' }
-  | { tipo: 'apagar'; empresa: Empresa }
-  | { tipo: 'usuario' }
-  | { tipo: 'senha'; membro: Membro }
-  | null;
-
-const quando = (v: string | null) => (v ? new Date(v).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' }) : 'nunca');
-
-/** Área do dono da plataforma: empresas (criar, inativar, apagar) e os usuários de cada uma. */
+/** Área do dono da plataforma: empresas (criar, editar, inativar, apagar) e os usuários de cada uma. */
 export default function Owner() {
   const nav = useNavigate();
   const { empresas, atual, recarregar, sair } = useEmpresas();
   const [selecionadaId, setSelecionadaId] = useState<string | null>(atual?.id ?? null);
-  const [membros, setMembros] = useState<Membro[] | null>(null);
   const [janela, setJanela] = useState<Janela>(null);
   const [aviso, setAviso] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
   const selecionada = empresas.find((e) => e.id === selecionadaId) ?? empresas[0] ?? null;
 
-  const carregarMembros = useCallback(async () => {
-    if (!selecionada) return setMembros([]);
-    const { data } = await supabase.rpc('listar_membros', { p_empresa: selecionada.id });
-    setMembros((data as Membro[]) ?? []);
-  }, [selecionada]);
-  useEffect(() => { setMembros(null); carregarMembros(); }, [carregarMembros]);
-
-  // Toda ação passa por aqui: mostra o erro do banco ou a confirmação.
-  async function executar(acao: () => PromiseLike<{ error: unknown }>, ok: string) {
-    const { error } = await acao();
-    if (error) { setAviso({ kind: 'error', text: errorMessage(error) }); return false; }
-    setAviso({ kind: 'success', text: ok });
-    return true;
-  }
-
   async function alternarEmpresa(e: Empresa, ativa: boolean) {
-    if (await executar(() => supabase.rpc('definir_empresa_ativa', { p_empresa: e.id, p_ativa: ativa }),
-      ativa ? `${e.nome} reativada.` : `${e.nome} inativada: não recebe eventos nem envia mensagens, e os usuários dela perdem o acesso.`)) await recarregar();
-  }
-
-  async function alternarMembro(m: Membro, ativo: boolean) {
-    if (await executar(() => supabase.rpc('definir_membro_ativo', { p_empresa: selecionada!.id, p_usuario: m.user_id, p_ativo: ativo }),
-      ativo ? `${m.nome ?? m.email} voltou a ter acesso.` : `${m.nome ?? m.email} perdeu o acesso a ${selecionada!.nome}.`)) carregarMembros();
-  }
-
-  async function mudarNivel(m: Membro, nivel: string) {
-    if (await executar(() => supabase.rpc('definir_nivel', { p_empresa: selecionada!.id, p_usuario: m.user_id, p_nivel: nivel }),
-      `Nível de ${m.nome ?? m.email} alterado.`)) carregarMembros();
+    const { error } = await supabase.rpc('definir_empresa_ativa', { p_empresa: e.id, p_ativa: ativa });
+    if (error) return setAviso({ kind: 'error', text: errorMessage(error) });
+    setAviso({ kind: 'success', text: ativa ? `${e.nome} reativada.` : `${e.nome} inativada: não recebe eventos nem envia mensagens, e os usuários dela perdem o acesso.` });
+    await recarregar();
   }
 
   return (
@@ -102,52 +68,13 @@ export default function Owner() {
                 <Toggle checked={selecionada.ativa} onChange={(v) => alternarEmpresa(selecionada, v)} />
                 {selecionada.ativa ? 'Ativa' : 'Inativa'}
               </label>
-              <button className="btn-danger" onClick={() => setJanela({ tipo: 'apagar', empresa: selecionada })}><Trash2 className="h-4 w-4" />Apagar</button>
+              <MenuAcoes rotulo="Ações da empresa" itens={[
+                { label: 'Editar', icone: <Pencil className="h-4 w-4" />, onClick: () => setJanela({ tipo: 'editar', empresa: selecionada }) },
+                { label: 'Apagar', icone: <Trash2 className="h-4 w-4" />, perigo: true, onClick: () => setJanela({ tipo: 'apagar', empresa: selecionada }) },
+              ]} />
             </div>
 
-            <div className="flex items-center justify-between">
-              <h3 className="font-semibold">Usuários de {selecionada.nome}</h3>
-              <button className="btn-primary" onClick={() => setJanela({ tipo: 'usuario' })}><UserPlus className="h-4 w-4" />Adicionar usuário</button>
-            </div>
-
-            {!membros ? <Spinner /> : membros.length === 0 ? (
-              <EmptyState icon={<Users />} title="Ninguém nesta empresa" text="Adicione quem vai usar o painel desta empresa. Você, como dono, já vê todas." />
-            ) : (
-              <div className="card overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
-                      <th className="px-4 py-3 font-medium">Usuário</th>
-                      <th className="px-4 py-3 font-medium">Acesso</th>
-                      <th className="px-4 py-3 font-medium">Último acesso</th>
-                      <th className="px-4 py-3 font-medium">Ativo</th>
-                      <th className="px-4 py-3" />
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-line">
-                    {membros.map((m) => (
-                      <tr key={m.user_id} className={m.ativo ? '' : 'opacity-60'}>
-                        <td className="px-4 py-3">
-                          <p className="font-medium">{m.nome ?? m.email}</p>
-                          {m.nome && <p className="text-xs text-muted">{m.email}</p>}
-                        </td>
-                        <td className="px-4 py-3">
-                          <select className="input w-32 py-1.5" value={m.nivel} onChange={(e) => mudarNivel(m, e.target.value)}>
-                            <option value="ver">Só vê</option>
-                            <option value="editar">Edita</option>
-                          </select>
-                        </td>
-                        <td className="px-4 py-3 text-muted">{quando(m.ultimo_acesso)}</td>
-                        <td className="px-4 py-3"><Toggle checked={m.ativo} onChange={(v) => alternarMembro(m, v)} /></td>
-                        <td className="px-4 py-3 text-right">
-                          <button className="btn-ghost py-1.5" onClick={() => setJanela({ tipo: 'senha', membro: m })}><KeyRound className="h-4 w-4" />Redefinir senha</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            <GestaoUsuarios empresa={selecionada} podeGerenciar />
           </section>
         )}
       </div>
@@ -156,6 +83,11 @@ export default function Owner() {
         <NovaEmpresa onClose={() => setJanela(null)} onCriada={async (id, nome) => {
           setJanela(null); await recarregar(); setSelecionadaId(id);
           setAviso({ kind: 'success', text: `${nome} criada. Adicione os usuários e, abrindo a empresa, configure a integração do Octadesk.` });
+        }} />
+      )}
+      {janela?.tipo === 'editar' && (
+        <EditarEmpresa empresa={janela.empresa} onClose={() => setJanela(null)} onSalva={async (nome) => {
+          setJanela(null); await recarregar(); setAviso({ kind: 'success', text: `${nome} atualizada.` });
         }} />
       )}
       {janela?.tipo === 'apagar' && (
@@ -167,34 +99,51 @@ export default function Owner() {
           if (eraAberta) { sair(); nav('/empresa', { replace: true }); }
         }} />
       )}
-      {janela?.tipo === 'usuario' && selecionada && (
-        <NovoUsuario empresa={selecionada} onClose={() => setJanela(null)} onCriado={(texto) => { setJanela(null); setAviso({ kind: 'success', text: texto }); carregarMembros(); }} />
-      )}
-      {janela?.tipo === 'senha' && (
-        <RedefinirSenha membro={janela.membro} onClose={() => setJanela(null)} onFeito={(texto) => { setJanela(null); setAviso({ kind: 'success', text: texto }); }} />
-      )}
     </div>
   );
 }
 
 function NovaEmpresa({ onClose, onCriada }: { onClose: () => void; onCriada: (id: string, nome: string) => void }) {
-  const [nome, setNome] = useState('');
+  const [dados, setDados] = useState<DadosEmpresa>(dadosIniciais());
   const [busy, setBusy] = useState(false);
   const [erro, setErro] = useState('');
   async function criar() {
+    const invalido = validarEmpresa(dados);
+    if (invalido) return setErro(invalido);
     setBusy(true); setErro('');
-    const { data, error } = await supabase.rpc('salvar_empresa', { p: { nome: nome.trim() } });
+    const { data, error } = await supabase.rpc('salvar_empresa', { p: paraSalvar(dados) });
     setBusy(false);
     if (error) return setErro(errorMessage(error));
-    onCriada(data as string, nome.trim());
+    onCriada(data as string, dados.nome.trim());
   }
   return (
-    <Modal open title="Nova empresa" onClose={onClose}
-      footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button className="btn-primary" disabled={busy || !nome.trim()} onClick={criar}>{busy ? <Spinner /> : 'Criar empresa'}</button></>}>
+    <Modal open largo title="Nova empresa" onClose={onClose}
+      footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button className="btn-primary" disabled={busy || !dados.nome.trim()} onClick={criar}>{busy ? <Spinner /> : 'Criar empresa'}</button></>}>
       {erro && <div className="mb-3"><Alert>{erro}</Alert></div>}
-      <label className="label">Nome</label>
-      <input className="input" autoFocus value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Skyline" />
-      <p className="mt-2 text-xs text-muted">A empresa nasce vazia: integração, automações, números e chaves de API são só dela.</p>
+      <CamposEmpresa dados={dados} onChange={setDados} autoFocus />
+      <p className="mt-3 text-xs text-muted">O fuso define o horário comercial das regras de envio. A empresa nasce vazia: integração, automações, números e chaves de API são só dela.</p>
+    </Modal>
+  );
+}
+
+function EditarEmpresa({ empresa, onClose, onSalva }: { empresa: Empresa; onClose: () => void; onSalva: (nome: string) => void }) {
+  const [dados, setDados] = useState<DadosEmpresa>(dadosIniciais(empresa));
+  const [busy, setBusy] = useState(false);
+  const [erro, setErro] = useState('');
+  async function salvar() {
+    const invalido = validarEmpresa(dados);
+    if (invalido) return setErro(invalido);
+    setBusy(true); setErro('');
+    const { error } = await supabase.rpc('salvar_empresa', { p: paraSalvar(dados, empresa.id) });
+    setBusy(false);
+    if (error) return setErro(errorMessage(error));
+    onSalva(dados.nome.trim());
+  }
+  return (
+    <Modal open largo title="Editar empresa" onClose={onClose}
+      footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button className="btn-primary" disabled={busy || !dados.nome.trim()} onClick={salvar}>{busy ? <Spinner /> : 'Salvar'}</button></>}>
+      {erro && <div className="mb-3"><Alert>{erro}</Alert></div>}
+      <CamposEmpresa dados={dados} onChange={setDados} autoFocus />
     </Modal>
   );
 }
@@ -221,61 +170,3 @@ function ApagarEmpresa({ empresa, onClose, onApagada }: { empresa: Empresa; onCl
   );
 }
 
-function NovoUsuario({ empresa, onClose, onCriado }: { empresa: Empresa; onClose: () => void; onCriado: (texto: string) => void }) {
-  const [form, setForm] = useState({ nome: '', email: '', senha: '', nivel: 'ver' });
-  const [busy, setBusy] = useState(false);
-  const [erro, setErro] = useState('');
-  async function criar() {
-    setBusy(true); setErro('');
-    const { error } = await supabase.rpc('criar_usuario', {
-      p_empresa: empresa.id, p_email: form.email, p_nome: form.nome, p_senha: form.senha, p_nivel: form.nivel,
-    });
-    setBusy(false);
-    if (error) return setErro(errorMessage(error));
-    onCriado(`${form.nome || form.email} tem acesso a ${empresa.nome}. Se a conta é nova, passe o e-mail e a senha para a pessoa; ela troca a senha em Meu perfil.`);
-  }
-  const set = (k: keyof typeof form) => (e: { target: { value: string } }) => setForm({ ...form, [k]: e.target.value });
-  return (
-    <Modal open title={`Adicionar usuário em ${empresa.nome}`} onClose={onClose}
-      footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button className="btn-primary" disabled={busy || !form.email.trim()} onClick={criar}>{busy ? <Spinner /> : 'Adicionar'}</button></>}>
-      {erro && <div className="mb-3"><Alert>{erro}</Alert></div>}
-      <div className="space-y-3">
-        <div><label className="label">Nome</label><input className="input" autoFocus value={form.nome} onChange={set('nome')} placeholder="Nome da pessoa" /></div>
-        <div><label className="label">E-mail</label><input className="input" type="email" value={form.email} onChange={set('email')} placeholder="pessoa@empresa.com" /></div>
-        <div>
-          <label className="label">Senha provisória</label>
-          <input className="input" type="text" autoComplete="off" value={form.senha} onChange={set('senha')} placeholder="Mínimo de 8 caracteres" />
-          <p className="mt-1 text-xs text-muted">Se o e-mail já tem conta (em outra empresa), a senha atual dele continua valendo e este campo é ignorado.</p>
-        </div>
-        <div>
-          <label className="label">Acesso</label>
-          <select className="input" value={form.nivel} onChange={set('nivel')}>
-            <option value="ver">Só vê: acompanha automações e estatísticas</option>
-            <option value="editar">Edita: cria automações e mexe nas configurações da empresa</option>
-          </select>
-        </div>
-      </div>
-    </Modal>
-  );
-}
-
-function RedefinirSenha({ membro, onClose, onFeito }: { membro: Membro; onClose: () => void; onFeito: (texto: string) => void }) {
-  const [senha, setSenha] = useState('');
-  const [busy, setBusy] = useState(false);
-  const [erro, setErro] = useState('');
-  async function salvar() {
-    setBusy(true); setErro('');
-    const { error } = await supabase.rpc('redefinir_senha', { p_usuario: membro.user_id, p_senha: senha });
-    setBusy(false);
-    if (error) return setErro(errorMessage(error));
-    onFeito(`Senha de ${membro.nome ?? membro.email} redefinida. Passe a nova senha para a pessoa.`);
-  }
-  return (
-    <Modal open title="Redefinir senha" onClose={onClose}
-      footer={<><button className="btn-ghost" onClick={onClose}>Cancelar</button><button className="btn-primary" disabled={busy || senha.length < 8} onClick={salvar}>{busy ? <Spinner /> : 'Salvar nova senha'}</button></>}>
-      {erro && <div className="mb-3"><Alert>{erro}</Alert></div>}
-      <p className="mb-3 text-sm text-muted">Nova senha para <b>{membro.nome ?? membro.email}</b>. Vale para todas as empresas em que a pessoa tem acesso.</p>
-      <input className="input" type="text" autoComplete="off" autoFocus value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo de 8 caracteres" />
-    </Modal>
-  );
-}

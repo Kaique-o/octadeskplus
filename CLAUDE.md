@@ -11,7 +11,7 @@ delas), enviando pelo **Octadesk**. Nasceu como clone do Bridge da Favo e substi
 
 - **Várias empresas no mesmo banco**, isoladas por RLS (`octaplus.empresas`; toda tabela tem `empresa_id`). O
   **dono da plataforma** (papel `owner` em `public.user_roles`) vê todas e, em **Configurações › Owner**, cria,
-  inativa e apaga empresas e gerencia os usuários de cada uma (`octaplus.membros`: nível `ver`/`editar`, ativo).
+  inativa e apaga empresas e gerencia os usuários de cada uma (`octaplus.membros`: perfil, ativo).
   As contas são criadas pelo banco direto no Auth (`criar_usuario`), sem cadastro público.
 - Num Supabase próprio (`supabase/base/`), a base recria vazias as tabelas do metrics que o octaplus lê; a tela de
   login oferece **Primeiro acesso** (a conta vira dono) só enquanto `octaplus.primeiro_acesso()` — única função
@@ -82,9 +82,11 @@ hora (respondeu / comprou).
    `salvar_integracao` e só o n8n lê, via `credenciais_octadesk()`.
 5. **Funções do motor têm `revoke execute ... from public, anon, authenticated`** no fim da migration 3.
    Função nova do motor entra nessa lista; função do painel checa `octaplus.pode('editar')` no topo.
-6. **Permissão é por empresa.** O painel manda o header `x-empresa` (`lib/supabase.ts`); `empresa_atual()` lê o
-   header e `pode(acao)` = `pode_na(empresa_atual(), acao)`: dono sempre, os demais com vínculo ativo numa empresa
-   ativa. Policy padrão: `empresa_id = empresa_atual() and pode('ver')`. **Tabela nova do octaplus nasce com
+6. **Permissão é por empresa e por área.** O painel manda o header `x-empresa` (`lib/supabase.ts`); `empresa_atual()`
+   lê o header. Cada membro tem um perfil (`octaplus.perfis`) com `nenhum`/`ver`/`editar` por área (`areas()`:
+   automacoes, integracoes, empresa, usuarios, api, nao_perturbe); `pode_aqui(area, acao)` na empresa atual, dono sempre.
+   Quem tem `usuarios: editar` gerencia usuários e perfis da própria empresa. No front: `usePode(area)`.
+   Policy padrão: `empresa_id = empresa_atual() and pode_aqui('<area>', 'ver')`. **Tabela nova do octaplus nasce com
    `empresa_id ... default octaplus.empresa_atual()` e essa policy.** O motor nunca usa o header: recebe ou
    descobre a empresa (automação, segredo do webhook do Octadesk, chave de API) e filtra por ela.
 7. **O navegador não chama o n8n.** Validar integração e sincronizar catálogo são pedidos pelo banco
@@ -98,7 +100,7 @@ hora (respondeu / comprou).
     logo; **Configurações** (rodapé) tem as abas Integrações · Empresa · Usuários · API · Não perturbe · **Owner**
     (Owner só para o dono; Usuários é só leitura, via `listar_usuarios()`); **Meu perfil** no card do
     usuário. Rota nova nasce com verbete em `AJUDA`.
-12. **Modo demonstração isolado** — `VITE_DEMO=1` troca o cliente Supabase por memória (`lib/demo.ts`), com o
+12. **Modo demonstração isolado** — só em `npm run web:dev` (build publicado ignora e sempre exige login): `VITE_DEMO=1` troca o cliente Supabase por memória (`lib/demo.ts`), com o
     mesmo formato das tabelas `octaplus`. Nenhuma tela tem `if (DEMO)`.
 
 ## Octadesk — o que usar
