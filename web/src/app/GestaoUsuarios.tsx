@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, KeyRound, List, Pencil, Plus, ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, KeyRound, List, Pencil, Plus, Trash2, UserPlus, Users } from 'lucide-react';
 import { Alert, EmptyState, MenuAcoes, Modal, Spinner, Toggle } from '../components/ui';
 import { errorMessage, supabase } from '../lib/supabase';
 import { useSession } from '../lib/session';
@@ -72,8 +72,9 @@ export default function GestaoUsuarios({ empresa, podeGerenciar }: { empresa: Em
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h3 className="font-semibold">Usuários de {empresa.nome}{membros && <span className="ml-2 font-normal text-muted">({lista.length})</span>}</h3>
         {podeGerenciar && (
-          <div className="flex flex-wrap gap-2">
-            <button className="btn-ghost" onClick={() => setJanela({ tipo: 'perfis' })}><ShieldCheck className="h-4 w-4" />Configurar perfis de acesso</button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button className="rounded px-2 text-sm font-semibold text-brand transition-colors hover:text-brand-hover hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/30"
+              onClick={() => setJanela({ tipo: 'perfis' })}>Configurar perfis de acesso</button>
             <button className="btn-primary" onClick={() => setJanela({ tipo: 'novo' })}><UserPlus className="h-4 w-4" />Criar usuário</button>
           </div>
         )}
