@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Download, List } from 'lucide-react';
+import { AlertTriangle, ChevronLeft, ChevronRight, Clock, Download, List, Mail, ShoppingCart, Users, Zap, type LucideIcon } from 'lucide-react';
 import { Modal, rotuloStatus, Spinner, StatusChip } from '../components/ui';
 import { baixarCsv } from '../lib/csv';
 import { ACOES, MOTIVOS } from '../lib/constants';
@@ -45,6 +45,31 @@ function TabelaExecucoes({ linhas }: { linhas: Linha[] }) {
   );
 }
 
+type Tom = 'neutro' | 'marinho' | 'azul' | 'verde' | 'ambar' | 'vermelho';
+interface Card { label: string; valor: string; sub?: string; icone: LucideIcon; tom: Tom }
+
+// fundo e borda do card, quadrado do ícone, cor do ícone, do número e da linha de baixo
+const TONS: Record<Tom, { card: string; quadro: string; icone: string; numero: string; sub: string }> = {
+  neutro:   { card: 'border-line bg-white', quadro: 'bg-fog', icone: 'text-ink', numero: 'text-ink', sub: 'text-muted' },
+  marinho:  { card: 'border-line bg-white', quadro: 'bg-brand-soft', icone: 'text-ink', numero: 'text-ink', sub: 'text-muted' },
+  azul:     { card: 'border-line bg-white', quadro: 'bg-brand-soft', icone: 'text-brand', numero: 'text-brand', sub: 'text-muted' },
+  verde:    { card: 'border-line bg-white', quadro: 'bg-green-50', icone: 'text-green-700', numero: 'text-green-800', sub: 'text-green-700' },
+  ambar:    { card: 'border-amber-200/70 bg-amber-50/60', quadro: 'bg-amber-100/80', icone: 'text-amber-500', numero: 'text-ink', sub: 'text-muted' },
+  vermelho: { card: 'border-red-200/70 bg-red-50/60', quadro: 'bg-red-100/80', icone: 'text-red-600', numero: 'text-red-800', sub: 'text-muted' },
+};
+
+function CardNumero({ label, valor, sub, icone: Icone, tom }: Card) {
+  const t = TONS[tom];
+  return (
+    <div className={`rounded-2xl border p-5 shadow-sm ${t.card}`}>
+      <span className={`grid h-11 w-11 place-items-center rounded-xl ${t.quadro}`}><Icone className={`h-5 w-5 ${t.icone}`} strokeWidth={1.8} /></span>
+      <p className="mt-4 text-sm text-muted">{label}</p>
+      <p className={`mt-1 font-title text-4xl font-bold tabular-nums tracking-tight ${t.numero}`}>{valor}</p>
+      {sub && <p className={`mt-1.5 text-sm ${t.sub}`}>{sub}</p>}
+    </div>
+  );
+}
+
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 });
 
 /** Bloco de estatísticas — mora na tela inicial, abaixo do banner. */
@@ -85,13 +110,13 @@ export default function Stats() {
   const daPagina = linhas.slice(paginaAtual * POR_PAGINA, (paginaAtual + 1) * POR_PAGINA);
   const taxa = t.envios ? Math.round((t.respostas / t.envios) * 100) : 0;
 
-  const cards: [string, string, string, string?][] = [
-    ['Gatilhos', t.gatilhos.toLocaleString('pt-BR'), 'text-ink'],
-    ['Mensagens enviadas', t.envios.toLocaleString('pt-BR'), 'text-brand'],
-    ['Responderam', `${taxa}%`, 'text-brand', `${t.respostas} clientes`],
-    ['Compraram em 7 dias', t.compras.toLocaleString('pt-BR'), 'text-success', brl(t.valor)],
-    ['Sem envio', t.semEnvio.toLocaleString('pt-BR'), 'text-muted', 'regras e conversas abertas'],
-    ['Erros', t.erros.toLocaleString('pt-BR'), 'text-danger'],
+  const cards: Card[] = [
+    { label: 'Gatilhos', valor: t.gatilhos.toLocaleString('pt-BR'), icone: Zap, tom: 'neutro' },
+    { label: 'Mensagens enviadas', valor: t.envios.toLocaleString('pt-BR'), icone: Mail, tom: 'marinho' },
+    { label: 'Responderam', valor: `${taxa}%`, sub: `${t.respostas.toLocaleString('pt-BR')} clientes`, icone: Users, tom: 'azul' },
+    { label: 'Compraram em 7 dias', valor: t.compras.toLocaleString('pt-BR'), sub: brl(t.valor), icone: ShoppingCart, tom: 'verde' },
+    { label: 'Sem envio', valor: t.semEnvio.toLocaleString('pt-BR'), sub: 'regras e conversas abertas', icone: Clock, tom: 'ambar' },
+    { label: 'Erros', valor: t.erros.toLocaleString('pt-BR'), icone: AlertTriangle, tom: 'vermelho' },
   ];
 
   return (
@@ -107,14 +132,8 @@ export default function Stats() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-        {cards.map(([label, valor, cor, sub]) => (
-          <div key={label} className="card p-4">
-            <p className="text-sm text-muted">{label}</p>
-            <p className={`mt-1 font-title text-3xl font-bold tabular-nums ${cor}`}>{valor}</p>
-            {sub && <p className="text-xs text-muted">{sub}</p>}
-          </div>
-        ))}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6">
+        {cards.map((c) => <CardNumero key={c.label} {...c} />)}
       </div>
 
       <section className="card p-5">

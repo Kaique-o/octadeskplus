@@ -1,10 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { DEMO, demoClient } from './demo';
 
-const url = import.meta.env.VITE_SUPABASE_URL as string;
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
-
-if (!DEMO && (!url || !key)) console.warn('Configure VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY em web/.env.local');
+// Projeto padrão: URL e chave publishable são públicas (vão no JavaScript de qualquer jeito; quem protege é o RLS).
+// Assim um deploy sem as variáveis não aponta para lugar nenhum. As variáveis de ambiente continuam valendo por cima.
+const url = (import.meta.env.VITE_SUPABASE_URL as string) || 'https://gsndcxdjwblsukxjzwhi.supabase.co';
+const key = (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string) || 'sb_publishable_L3m2GbxCxn4wHDyVuR_iBQ_OAJssJEV';
 
 // Empresa atual: vai no header x-empresa de toda chamada e o banco só mostra os dados dela (RLS).
 // Começa pela última escolhida, para as primeiras chamadas depois de recarregar a página já irem certas.
@@ -27,7 +27,7 @@ const comEmpresa: typeof fetch = (input, init) => {
 };
 
 // As tabelas do painel ficam no schema `octaplus`.
-const realClient = createClient(url ?? 'http://localhost', key ?? 'missing', { db: { schema: 'octaplus' }, global: { fetch: comEmpresa } });
+const realClient = createClient(url, key, { db: { schema: 'octaplus' }, global: { fetch: comEmpresa } });
 // No modo demonstração tudo roda em memória (veja demo.ts): nenhuma chamada sai do navegador.
 export const supabase = DEMO ? (demoClient as unknown as typeof realClient) : realClient;
 
@@ -71,6 +71,8 @@ export function errorMessage(e: unknown): string {
     'rate limit': 'Muitas tentativas seguidas. Espere alguns minutos e tente de novo.',
     'For security purposes': 'Por segurança, espere alguns segundos antes de pedir de novo.',
     'invalid format': 'E-mail inválido.',
+    'NetworkError': 'Não foi possível falar com o servidor. Confira sua internet e tente de novo.',
+    'Failed to fetch': 'Não foi possível falar com o servidor. Confira sua internet e tente de novo.',
   };
   return Object.entries(map).find(([k]) => raw.includes(k))?.[1] ?? raw;
 }
