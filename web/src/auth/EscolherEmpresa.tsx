@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Building2, ChevronRight, ShieldOff } from 'lucide-react';
+import { ChevronRight, ShieldOff } from 'lucide-react';
+import LogoEmpresa from '../app/LogoEmpresa';
 import AuthShell from './AuthShell';
 import { Alert, Spinner } from '../components/ui';
 import { useEmpresas } from '../lib/empresas';
@@ -66,7 +67,7 @@ export default function EscolherEmpresa() {
               type="button" onClick={() => entrar(e.id)}
               className={`card flex w-full items-center gap-3 px-4 py-4 text-left transition hover:border-brand hover:shadow-sm ${ultima === e.id ? 'border-brand' : ''}`}
             >
-              <span className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-soft text-brand"><Building2 size={20} strokeWidth={1.8} /></span>
+              <LogoEmpresa empresa={e} />
               <span className="flex-1">
                 <strong className="block font-title text-base font-semibold">{e.nome}</strong>
                 <span className="text-xs text-muted">

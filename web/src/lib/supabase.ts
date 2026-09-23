@@ -59,6 +59,8 @@ export function errorMessage(e: unknown): string {
     perfil_repetido: 'Já existe um perfil com esse nome nesta empresa.',
     perfil_sem_nome: 'Informe o nome do perfil.',
     permissao_invalida: 'Permissão inválida no perfil.',
+    logo_invalido: 'A imagem é inválida ou grande demais.',
+    fuso_invalido: 'Fuso horário inválido.',
     voce_mesmo: 'Você não pode alterar o seu próprio acesso por aqui.',
     usuario_em_outras_empresas: 'Essa pessoa também usa outras empresas: só o dono da plataforma pode trocar a senha dela.',
     'Invalid login credentials': 'E-mail ou senha incorretos.',

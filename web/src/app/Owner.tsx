@@ -4,6 +4,7 @@ import { Building2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Alert, EmptyState, MenuAcoes, Modal, Spinner, Toggle } from '../components/ui';
 import SettingsTabs from './SettingsTabs';
 import GestaoUsuarios from './GestaoUsuarios';
+import LogoEmpresa from './LogoEmpresa';
 import { errorMessage, supabase } from '../lib/supabase';
 import { useEmpresas, type Empresa } from '../lib/empresas';
 import CamposEmpresa, { dadosIniciais, paraSalvar, validarEmpresa, type DadosEmpresa } from './FormEmpresa';
@@ -43,7 +44,7 @@ export default function Owner() {
               <li key={e.id}>
                 <button type="button" onClick={() => setSelecionadaId(e.id)}
                   className={`card flex w-full items-center gap-3 px-3 py-3 text-left transition hover:border-brand ${selecionada?.id === e.id ? 'border-brand' : ''}`}>
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand-soft text-brand"><Building2 size={18} strokeWidth={1.8} /></span>
+                  <LogoEmpresa empresa={e} tamanho="sm" />
                   <span className="min-w-0 flex-1">
                     <strong className="block truncate text-sm">{e.nome}</strong>
                     <span className={`chip mt-1 ${e.ativa ? 'bg-green-100 text-success' : 'bg-fog text-muted'}`}>{e.ativa ? 'Ativa' : 'Inativa'}</span>
@@ -60,6 +61,7 @@ export default function Owner() {
         ) : (
           <section className="space-y-4">
             <div className="card flex flex-wrap items-center gap-4 p-5">
+              <LogoEmpresa empresa={selecionada} tamanho="lg" editavel onMudou={recarregar} />
               <div className="min-w-0 flex-1">
                 <h2 className="truncate font-title text-lg font-semibold">{selecionada.nome}</h2>
                 <p className="text-sm text-muted">Criada em {new Date(selecionada.criada_em).toLocaleDateString('pt-BR')}{atual?.id === selecionada.id && ' · empresa aberta agora'}</p>

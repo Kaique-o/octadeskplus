@@ -54,6 +54,16 @@ teste('empresa: editar só o fuso mantém o resto', dadosC.fuso === 'America/Sao
 await como(dono);
 teste('lista de empresas traz o fuso', (await q('select fuso from octaplus.listar_empresas() where id = $1', [C]))[0]?.fuso === 'America/Sao_Paulo');
 teste('empresa: fuso inválido é recusado', (await falha(`select octaplus.salvar_empresa($1)`, [{ id: C, fuso: 'Lua/Base' }])).includes('fuso_invalido'));
+// logo da empresa (base64)
+const logo = 'data:image/webp;base64,' + 'A'.repeat(200);
+await q(`select octaplus.salvar_empresa($1)`, [{ id: C, logo }]);
+teste('logo: salva a imagem e a lista devolve', (await q('select logo from octaplus.listar_empresas() where id = $1', [C]))[0]?.logo === logo);
+teste('logo: só aceita imagem em base64', (await falha(`select octaplus.salvar_empresa($1)`, [{ id: C, logo: 'javascript:alert(1)' }])).includes('logo_invalido'));
+teste('logo: recusa imagem grande demais', (await falha(`select octaplus.salvar_empresa($1)`, [{ id: C, logo: 'data:image/png;base64,' + 'A'.repeat(600000) }])).includes('logo_invalido'));
+await q(`select octaplus.salvar_empresa($1)`, [{ id: C, cnpj: '12345678000190' }]);
+teste('logo: editar outro campo mantém a foto', (await q('select logo from octaplus.listar_empresas() where id = $1', [C]))[0]?.logo === logo);
+await q(`select octaplus.salvar_empresa($1)`, [{ id: C, logo: '' }]);
+teste('logo: vazio remove a foto', (await q('select logo from octaplus.listar_empresas() where id = $1', [C]))[0]?.logo === null);
 await q(`select octaplus.apagar_empresa($1, 'Sky Norte')`, [C]);
 await motor();
 

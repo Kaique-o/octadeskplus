@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Building2 } from 'lucide-react';
 import { Alert, Spinner } from '../components/ui';
 import SettingsTabs from './SettingsTabs';
+import LogoEmpresa from './LogoEmpresa';
 import CamposEmpresa, { dadosIniciais, paraSalvar, validarEmpresa, type DadosEmpresa } from './FormEmpresa';
 import { errorMessage, supabase } from '../lib/supabase';
 import { useSession } from '../lib/session';
@@ -35,7 +35,7 @@ export default function Empresa() {
       <SettingsTabs />
       <section className="card p-5">
         <div className="flex items-start gap-3">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-brand-soft text-brand"><Building2 className="h-5 w-5" /></div>
+          {atual && <LogoEmpresa empresa={atual} editavel={podeEditar} onMudou={recarregar} />}
           <div>
             <h2 className="font-semibold">Dados da empresa</h2>
             <p className="mt-0.5 text-sm text-muted">O fuso define o horário comercial das regras de envio.</p>
