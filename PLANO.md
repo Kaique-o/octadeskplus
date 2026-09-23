@@ -156,7 +156,7 @@ Detectores rodam por **pg_cron** no próprio banco (`octaplus.detectar_eventos()
 | 1. Segurança | **Pendente — depende de você**: rotacionar os segredos expostos nos JSONs do n8n do metrics | `metrics/n8n/ativos|inativos` |
 | 2. Banco | Pronto e testado (46 testes em Postgres embarcado com stub do metrics) | `supabase/migrations`, `supabase/tests` |
 | 3. Octadesk | Pronto e testado (25 testes com o Octadesk simulado) | `n8n/codigo`, `n8n/fluxos`, `n8n/tests` |
-| 4. Front | Pronto no modo demonstração; falta rodar contra o banco real | `web/src` |
+| 4. Front | Ligado ao Supabase próprio (`gsndcxdjwblsukxjzwhi`) desde 23/09/2026; falta o primeiro login | `web/src` |
 | 5. Piloto | Pendente — precisa do Supabase e de um número de teste | — |
 
 Desvios em relação ao desenho: os detectores usam **janela de tempo + deduplicação** em vez da tabela
@@ -176,7 +176,11 @@ A análise original do Bridge da Favo (rotas, calibragem com a conta real) está
 
 ## Pendências (dependem de você)
 
-- **Qual Supabase** (você vai informar). O desenho assume o mesmo banco do metrics; se for outro, os detectores
-  passam a ler o metrics por conexão remota (`postgres_fdw`) em vez de SQL local.
+- **Supabase** (23/09/2026): projeto próprio `gsndcxdjwblsukxjzwhi`, **sem o metrics**. Instalado com
+  `supabase/instalar-projeto-proprio.sql` (base com as tabelas do metrics vazias + migrations + pg_cron) e schema
+  `octaplus` exposto no PostgREST. Detectores de vendas/créditos/curvas ficam sem dados até alguém alimentar essas
+  tabelas (ou ligar o metrics por `postgres_fdw`); gatilhos de conversa e webhook externo funcionam.
+- Criar o primeiro usuário em Authentication (vira dono) e rotacionar a senha do banco e a secret key que
+  passaram pelo chat.
 - Número de teste para os envios do piloto e o usuário do Octadesk para `octa-agent-email`.
 - Quem cadastra no Octadesk a URL dos webhooks de conversa (é configuração da conta; não há API pública).

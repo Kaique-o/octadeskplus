@@ -60,6 +60,13 @@ o Pages devolve o `index.html` e o React Router assume.
 ## Subir o backend
 1. **Banco** — no Supabase do metrics, aplicar `supabase/migrations/*` em ordem e **expor o schema `octaplus`**
    no PostgREST (Settings › API › Exposed schemas; self-hosted: `PGRST_DB_SCHEMAS`).
+   **Supabase próprio (sem o metrics):** `npm run db:instalacao` gera `supabase/instalar-projeto-proprio.sql`
+   (pg_cron + `supabase/base/base-projeto-proprio.sql` + migrations); colar no SQL Editor de um projeto vazio.
+   A base cria vazias as tabelas do metrics que o octaplus lê. Enquanto não houver usuário, a tela de login abre em
+   **Primeiro acesso** (cria a conta dona); os seguintes entram sem acesso. Em Authentication › URL Configuration,
+   pôr a URL do painel em Site URL e em Redirect URLs (links de confirmação e de redefinir senha); depois do
+   primeiro acesso, desligar "Allow new users to sign up" (Add user/Invite no painel do Supabase continuam). Os gatilhos de conversa e o webhook externo funcionam; os detectores
+   de vendas/créditos/curvas não acham nada até essas tabelas terem dados.
 2. **Permissões** — dono/superadmin do metrics já entram. Para outros perfis de acesso, adicionar o recurso
    `octaplus` com as ações `ver` e/ou `editar`.
 3. **n8n** — credencial Postgres "Supabase Postgres" apontando para o banco do metrics, depois:

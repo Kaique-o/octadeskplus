@@ -251,5 +251,11 @@ teste('usuários: lista os do metrics com papel e perfil', us.length === 3 && us
 await comoUsuario(semAcesso);
 teste('usuários: sem permissão não vê ninguém', (await q(`select * from octaplus.listar_usuarios()`)).length === 0);
 
+// visitante sem login (anon): nenhuma função do octaplus executa
+await db.exec("reset role; set role anon");
+const anonExecuta = await q(`select p.proname from pg_proc p where p.pronamespace = 'octaplus'::regnamespace
+  and has_function_privilege('anon', p.oid, 'execute')`);
+teste('sem login: anon só executa primeiro_acesso', anonExecuta.map((x) => x.proname).join() === 'primeiro_acesso', anonExecuta.map((x) => x.proname).join(', '));
+
 console.log(falhas ? `\n${falhas} teste(s) falharam` : '\ntodos os testes passaram');
 process.exit(falhas ? 1 : 0);

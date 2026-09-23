@@ -9,7 +9,8 @@
     "n8n:import": "node n8n/importar-via-api.js",
     "web:dev": "npm --prefix web run dev",
     "web:build": "npm --prefix web run build",
-    "db:test": "node supabase/tests/testar.mjs",
+    "db:instalacao": "node supabase/montar-instalacao.mjs",
+    "db:test": "node supabase/tests/testar.mjs && node supabase/tests/testar-base.mjs",
     "n8n:test": "node n8n/tests/testar-codigo.mjs",
     "test": "npm run db:test && npm run n8n:test"
   },

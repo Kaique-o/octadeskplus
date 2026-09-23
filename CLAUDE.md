@@ -9,7 +9,9 @@ Plano, decisões e status das fases: [PLANO.md](PLANO.md).
 Sankhya, vendas, créditos, curvas ABC, alertas de comportamento, conversas do Octadesk e a classificação de IA
 delas), enviando pelo **Octadesk**. Nasceu como clone do Bridge da Favo e substitui esse serviço.
 
-- Uma empresa só. **Login, usuários e permissões são os do metrics** — não existe cadastro próprio.
+- Uma empresa só. **Login, usuários e permissões são os do metrics** — não existe cadastro próprio. Num Supabase
+  próprio (`supabase/base/`), a base recria essas tabelas vazias e a tela de login oferece **Primeiro acesso**
+  só enquanto `octaplus.primeiro_acesso()` (única função liberada para `anon`) for verdadeira.
 - Gatilhos: detectores sobre as tabelas do metrics, webhooks de conversa do Octadesk e webhook externo
   (inclusive as campanhas do metrics, que usam o mesmo contrato `X-Bridge-Secret` do Bridge).
 - Sem site institucional, planos ou cobrança. Pipedrive, HubSpot, Zoho, Trello e YCloud foram descartados de
