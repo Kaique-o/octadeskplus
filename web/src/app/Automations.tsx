@@ -268,12 +268,12 @@ export default function Automations() {
 
   return (
     <div>
-      <PageHeader title="Automações" subtitle="Réguas de WhatsApp em cima dos dados do metrics, enviadas pelo Octadesk."
+      <PageHeader title="Automações" subtitle="Gatilhos e ações que conversam com seus clientes pelo Octadesk."
         actions={podeEditar && <Link to="/app/automacoes/nova" className="btn-primary"><Plus className="h-4 w-4" />Criar nova automação</Link>} />
 
       {loading ? <Spinner /> : visiveis.length === 0 ? (
         <EmptyState icon={<Workflow />} title={arquivadas ? 'Nenhuma automação arquivada' : 'Crie sua primeira automação'}
-          text="Escolha um gatilho do metrics (ex.: orçamento sem compra) e o que deve acontecer (ex.: enviar um template pelo Octadesk)."
+          text="Escolha um gatilho (ex.: conversa encerrada no Octadesk ou um evento externo) e o que deve acontecer (ex.: enviar um template)."
           action={!arquivadas && podeEditar && <Link to="/app/automacoes/nova" className="btn-primary"><Plus className="h-4 w-4" />Criar nova automação</Link>} />
       ) : (
         <div className="space-y-4">

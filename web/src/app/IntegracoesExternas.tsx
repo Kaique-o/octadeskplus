@@ -77,7 +77,7 @@ export default function IntegracoesExternas() {
         {aviso && <Alert kind={aviso.kind}>{aviso.text}</Alert>}
 
         {!itens ? <Spinner /> : itens.length === 0 ? (
-          <EmptyState icon={<Plug />} title="Nenhuma integração" text={podeEditar ? 'Conecte o metrics para usar clientes e vendas nas automações.' : 'Ainda não há integrações nesta empresa.'} />
+          <EmptyState icon={<Plug />} title="Nenhuma integração" text={podeEditar ? 'Conecte seus sistemas para usar os dados deles nas automações.' : 'Ainda não há integrações nesta empresa.'} />
         ) : (
           <div className="card overflow-x-auto">
             <table className="w-full text-sm">

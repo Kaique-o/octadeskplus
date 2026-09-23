@@ -21,14 +21,14 @@ export const NAV: NavItem[] = [
 export const AJUDA: Record<string, { titulo: string; texto: string }> = {
   '/app': {
     titulo: 'Início',
-    texto: 'Gatilhos são eventos que chegaram (do metrics, do Octadesk ou por webhook). "Mensagens enviadas" são os templates e '
+    texto: 'Gatilhos são eventos que chegaram (das integrações, do Octadesk ou por webhook). "Mensagens enviadas" são os templates e '
       + 'mensagens que saíram de fato. "Responderam" conta quem escreveu na conversa depois do envio, e "Compraram em 7 dias" '
-      + 'quem teve nota de venda no Sankhya nesse prazo. "Sem envio" junta o que as regras barraram: conversa já aberta, '
+      + 'quem teve nota de venda nesse prazo. "Sem envio" junta o que as regras barraram: conversa já aberta, '
       + 'limite de contato, não perturbe, telefone inválido ou condição não atendida.',
   },
   '/app/automacoes': {
     titulo: 'Automações',
-    texto: 'Cada automação é um gatilho seguido de ações em sequência. Gatilhos do metrics são conferidos a cada 5 minutos e só '
+    texto: 'Cada automação é um gatilho seguido de ações em sequência. Gatilhos de integrações são conferidos a cada 5 minutos e só '
       + 'olham o que acontecer depois de a automação ser ligada — ligar uma régua nunca dispara sobre o histórico. '
       + 'O interruptor pausa sem perder a configuração; o menu permite editar, duplicar e arquivar. '
       + 'A lista mostra 10 por página, ativas primeiro e pausadas depois (a seta de cada card mostra gatilho e ações); "Ver todas" abre todas em resumo — passe o mouse em '

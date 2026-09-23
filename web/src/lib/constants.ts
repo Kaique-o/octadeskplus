@@ -7,9 +7,9 @@ export const BRAND = {
 };
 
 export const FONTES: { value: Fonte; label: string; descricao: string }[] = [
-  { value: 'metrics', label: 'Metrics (CRM)', descricao: 'Vendas, orçamentos, curvas, créditos e alertas de comportamento' },
+  { value: 'metrics', label: 'Integração metrics', descricao: 'Vendas, orçamentos, curvas, créditos e alertas — precisa do metrics conectado em Integrações' },
   { value: 'octadesk', label: 'Conversas do Octadesk', descricao: 'Conversa encerrada, atribuída ou nova mensagem' },
-  { value: 'webhook', label: 'Evento externo (webhook)', descricao: 'Qualquer sistema via POST — inclusive as campanhas do metrics' },
+  { value: 'webhook', label: 'Evento externo (webhook)', descricao: 'Qualquer sistema via POST: ERP, loja, site ou planilha' },
 ];
 
 /** Parâmetro de um gatilho, desenhado no wizard. */
@@ -51,13 +51,13 @@ export const GATILHOS: Record<Gatilho, { fonte: Fonte; label: string; descricao:
     parametros: [{ chave: 'etapas', label: 'Etapas', tipo: 'lista', opcoes: ETAPAS_COMERCIAIS }],
     campos: ['evento.etapa', 'evento.categoria', 'evento.atendente'] },
   venda_faturada: { fonte: 'metrics', label: 'Venda faturada',
-    descricao: 'Nova nota de venda no Sankhya (itens somados por nota).', parametros: [],
+    descricao: 'Nova nota de venda (itens somados por nota).', parametros: [],
     campos: ['evento.numero_unico', 'evento.valor_total', 'evento.itens', 'evento.data'] },
   venda_cancelada: { fonte: 'metrics', label: 'Venda cancelada',
-    descricao: 'Nota cancelada no Sankhya.', parametros: [],
+    descricao: 'Nota de venda cancelada.', parametros: [],
     campos: ['evento.numero_unico', 'evento.valor_total', 'evento.data'] },
   alerta_comportamento: { fonte: 'metrics', label: 'Alerta de comportamento',
-    descricao: 'Alertas de "Quem chamar agora" do metrics. No máximo um por cliente e padrão por semana.',
+    descricao: 'Alertas de comportamento do cliente (ex.: cadência rompida). No máximo um por cliente e padrão por semana.',
     parametros: [{ chave: 'padroes', label: 'Padrões (vazio = todos)', tipo: 'lista', opcoes: PADROES_ALERTA }],
     campos: ['evento.padrao', 'evento.severidade', 'evento.motivo', 'evento.dias_atraso', 'evento.valor_risco'] },
   mudanca_curva: { fonte: 'metrics', label: 'Mudança de curva',
@@ -107,7 +107,7 @@ export const OPERADORES: { value: Operador; label: string; semValor?: boolean }[
 ];
 
 export const ACOES: Record<TipoAcao, { label: string; precisaConversa?: boolean; privada?: boolean }> = {
-  enviar_template: { label: 'Enviar template de WhatsApp' },
+  enviar_template: { label: 'Enviar template' },
   enviar_mensagem: { label: 'Enviar mensagem na conversa', precisaConversa: true },
   nota_interna: { label: 'Nota interna na conversa', precisaConversa: true },
   aplicar_tags: { label: 'Aplicar tags na conversa', precisaConversa: true },

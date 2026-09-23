@@ -376,7 +376,7 @@ export default function AutomationWizard() {
       )}
 
       {a.fonte === 'webhook' && (
-        <Passo n={++n} titulo="Endereço do webhook" sub="POST com JSON e o segredo no header X-Bridge-Secret (mesmo contrato do Bridge — basta trocar a URL nas campanhas do metrics).">
+        <Passo n={++n} titulo="Endereço do webhook" sub="POST com JSON e o segredo no header X-Bridge-Secret (ou em ?secret= na URL).">
           {!a.id ? (
             <button className="btn-primary" disabled={salvando} onClick={async () => { const nova = await salvar(true); if (nova) nav(`/app/automacoes/${nova}`, { replace: true }); }}>
               <Webhook className="h-4 w-4" />Gerar URL do webhook

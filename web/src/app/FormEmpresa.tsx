@@ -40,7 +40,7 @@ export default function CamposEmpresa({ dados, onChange, desabilitado, nomeBloqu
     <div className="grid gap-4 md:grid-cols-2">
       <div className="md:col-span-2">
         <label className="label">Nome da empresa</label>
-        <input className="input" placeholder="Ex.: Grupo Skytech" autoFocus={autoFocus} {...campo('nome')}
+        <input className="input" placeholder="Ex.: Minha Empresa" autoFocus={autoFocus} {...campo('nome')}
           disabled={desabilitado || nomeBloqueado} title={nomeBloqueado ? 'Só o dono da plataforma muda o nome' : undefined} />
       </div>
       <div><label className="label">CNPJ</label><input className="input tabular-nums" placeholder="00.000.000/0000-00" inputMode="numeric" {...campo('cnpj')} /></div>

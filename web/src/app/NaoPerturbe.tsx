@@ -64,7 +64,7 @@ export default function NaoPerturbe() {
           {itens.map((b) => (
             <div key={b.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
               <div>
-                <p className="font-medium tabular-nums">{b.telefone ?? 'Cliente do metrics'}</p>
+                <p className="font-medium tabular-nums">{b.telefone ?? 'Cliente (pelo cadastro)'}</p>
                 <p className="text-xs text-muted">{b.motivo ?? 'Sem motivo informado'} · desde {new Date(b.criado_em).toLocaleDateString('pt-BR')}</p>
               </div>
               {podeEditar && <button className="rounded p-1.5 text-danger hover:bg-red-50" title="Remover" onClick={() => remover(b)}><Trash2 className="h-4 w-4" /></button>}

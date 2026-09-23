@@ -44,7 +44,7 @@ export default function EscolherEmpresa() {
       <AuthShell title="Primeira empresa" subtitle="Você é o dono da plataforma. Cadastre a primeira empresa para começar." footer={sairDaConta}>
         <form onSubmit={criarPrimeira} className="space-y-4">
           {error && <Alert>{error}</Alert>}
-          <div><label className="label">Nome da empresa</label><input className="input" required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: SkyTech" /></div>
+          <div><label className="label">Nome da empresa</label><input className="input" required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex.: Minha Empresa" /></div>
           <p className="pt-1 text-sm font-semibold">Usuário Master <span className="font-normal text-muted">(administrador da empresa)</span></p>
           <div><label className="label">Nome</label><input className="input" value={master.nome} onChange={(e) => setMaster({ ...master, nome: e.target.value })} placeholder="Nome da pessoa" /></div>
           <div><label className="label">E-mail</label><input className="input" type="email" required value={master.email} onChange={(e) => setMaster({ ...master, email: e.target.value })} placeholder="pessoa@empresa.com" /></div>

@@ -34,7 +34,7 @@ export default function Home() {
           <p className="text-sm font-medium text-white/70">{atual?.nome}</p>
           <h1 className="mt-1 font-title text-3xl font-bold tracking-tight md:text-4xl">{saudacao}</h1>
           <p className="mt-3 max-w-xl text-white/80">
-            Os sinais do metrics viram conversas no WhatsApp pelo Octadesk, sem ninguém precisar lembrar de mandar mensagem.
+            Suas automações conversam com os clientes pelo Octadesk no momento certo, sem ninguém precisar lembrar.
           </p>
         </section>
       ) : (
