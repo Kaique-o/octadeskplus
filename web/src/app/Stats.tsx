@@ -144,9 +144,9 @@ export default function Stats() {
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold">Ações por dia</h2>
           <div className="flex gap-4 text-xs text-muted">
-            <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-success" />Executadas</span>
-            <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-gray-300" />Sem envio</span>
-            <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-danger" />Erros</span>
+            <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-green-300" />Executadas</span>
+            <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-gray-200" />Sem envio</span>
+            <span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-sm bg-red-300" />Erros</span>
           </div>
         </div>
         {loading ? <div className="py-10"><Spinner /></div> : (
@@ -155,9 +155,9 @@ export default function Stats() {
               <div key={d.dia} className="flex min-w-5 flex-1 flex-col items-center"
                 title={`${new Date(d.dia).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}: ${d.acoes_sucesso} executadas, ${d.acoes_sem_envio} sem envio, ${d.acoes_erro} erros`}>
                 <div className="flex w-full flex-col justify-end gap-px" style={{ height: `${(Number(d.acoes) / max) * 160}px` }}>
-                  {Number(d.acoes_erro) > 0 && <div className="rounded-t-sm bg-danger" style={{ flex: Number(d.acoes_erro) }} />}
-                  {Number(d.acoes_sem_envio) > 0 && <div className="bg-gray-300" style={{ flex: Number(d.acoes_sem_envio) }} />}
-                  {Number(d.acoes_sucesso) > 0 && <div className="rounded-b-sm bg-success" style={{ flex: Number(d.acoes_sucesso) }} />}
+                  {Number(d.acoes_erro) > 0 && <div className="rounded-t-sm bg-red-300" style={{ flex: Number(d.acoes_erro) }} />}
+                  {Number(d.acoes_sem_envio) > 0 && <div className="bg-gray-200" style={{ flex: Number(d.acoes_sem_envio) }} />}
+                  {Number(d.acoes_sucesso) > 0 && <div className="rounded-b-sm bg-green-300" style={{ flex: Number(d.acoes_sucesso) }} />}
                 </div>
                 <span className="mt-1.5 text-[10px] text-muted">{d.dia.slice(8, 10)}/{d.dia.slice(5, 7)}</span>
               </div>

@@ -168,7 +168,10 @@ const naoPerturbe: Row[] = [
   { id: uid(), telefone: '+5511912345678', client_id: null, motivo: 'Pediu para não receber', criado_em: iso(dia(2)) },
 ];
 
+const integracoesExternas: Row[] = [];
+
 const tabelas: Record<string, Row[]> = {
+  integracoes_externas: integracoesExternas,
   configuracao: [configuracao], integracao_octadesk: [integracao], octa_numeros: numeros, octa_templates: templates,
   octa_grupos: grupos, octa_tags: tags, mapa_filas: mapaFilas, automacoes, eventos, execucoes, envios,
   chaves_api: chavesApi, nao_perturbe: naoPerturbe, profiles: [demoSession.profile as Row],
@@ -251,6 +254,16 @@ const rpcs: Record<string, (args: Record<string, unknown>) => unknown> = {
   },
   definir_membro_ativo: ({ p_empresa, p_usuario, p_ativo }) => { const m = membros.find((x) => x.empresa_id === p_empresa && x.user_id === p_usuario); if (m) m.ativo = p_ativo; return null; },
   redefinir_senha: () => null,
+  salvar_integracao_externa: ({ p }) => {
+    const x = (p ?? {}) as Row;
+    const url = String(x.url ?? '').replace(/\/+$/, '');
+    const existente = integracoesExternas.find((i) => i.tipo === x.tipo);
+    if (existente) { Object.assign(existente, { config: { url }, status: 'pendente', atualizada_em: iso(new Date()) }); return existente.id; }
+    const nova = { id: uid(), tipo: x.tipo, config: { url }, status: 'pendente', ultimo_erro: null, criada_em: iso(new Date()), atualizada_em: iso(new Date()) };
+    integracoesExternas.push(nova);
+    return nova.id;
+  },
+  remover_integracao_externa: ({ p_id }) => { const i = integracoesExternas.findIndex((x) => x.id === p_id); if (i >= 0) integracoesExternas.splice(i, 1); return null; },
   editar_membro: ({ p_empresa, p_usuario, p_nome, p_perfil }) => {
     const m = membros.find((x) => x.empresa_id === p_empresa && x.user_id === p_usuario);
     if (m) Object.assign(m, { nome: String(p_nome ?? '').trim() || null, perfil_id: p_perfil });

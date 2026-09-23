@@ -40,10 +40,16 @@ export const AJUDA: Record<string, { titulo: string; texto: string }> = {
       + 'A primeira ação costuma ser um template: ele abre a conversa que as ações seguintes (nota, tags, transferência) usam.',
   },
   '/app/configuracoes': {
-    titulo: 'Integrações',
+    titulo: 'Octadesk',
     texto: 'Conecte o Octadesk com a chave de API e o e-mail do agente. Em até um minuto o sistema valida a chave e sincroniza '
       + 'números, templates aprovados, filas e tags. A transferência para filas usa o login de um usuário do Octadesk e é opcional. '
       + 'Nas regras de envio ficam o horário comercial e o limite de contato por cliente.',
+  },
+  '/app/configuracoes/integracoes': {
+    titulo: 'Integrações',
+    texto: 'Sistemas externos ligados a esta empresa. Em "Adicionar integração" você conecta o metrics informando a URL do '
+      + 'Supabase dele e uma chave de acesso — a chave fica guardada no servidor e nunca volta para a tela. Trello, Salesforce, '
+      + 'HubSpot e os demais aparecem como "Em breve". Editar e Desconectar ficam no ⋮ de cada integração.',
   },
   '/app/configuracoes/empresa': {
     titulo: 'Empresa',

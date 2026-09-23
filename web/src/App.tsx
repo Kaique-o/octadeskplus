@@ -16,6 +16,7 @@ import Automations from './app/Automations';
 import AutomationWizard from './app/AutomationWizard';
 import Profile from './app/Profile';
 import Owner from './app/Owner';
+import IntegracoesExternas from './app/IntegracoesExternas';
 import { EmptyState, Spinner } from './components/ui';
 import { ShieldOff } from 'lucide-react';
 import { usePode, type Area } from './lib/permissao';
@@ -64,6 +65,7 @@ export default function App() {
         <Route path="automacoes/nova" element={<RequireArea area="automacoes"><AutomationWizard /></RequireArea>} />
         <Route path="automacoes/:id" element={<RequireArea area="automacoes"><AutomationWizard /></RequireArea>} />
         <Route path="configuracoes" element={<RequireArea area="integracoes"><Integrations /></RequireArea>} />
+        <Route path="configuracoes/integracoes" element={<RequireArea area="integracoes"><IntegracoesExternas /></RequireArea>} />
         <Route path="configuracoes/empresa" element={<RequireArea area="empresa"><Empresa /></RequireArea>} />
         <Route path="configuracoes/usuarios" element={<RequireArea area="usuarios"><Usuarios /></RequireArea>} />
         <Route path="configuracoes/api" element={<RequireArea area="api"><ApiKeys /></RequireArea>} />

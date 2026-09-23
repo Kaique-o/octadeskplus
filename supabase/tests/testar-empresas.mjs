@@ -127,6 +127,31 @@ const minhas = await q('select id, perfil, perfil_tipo, permissoes from octaplus
 teste('não-owner: só vê as empresas em que tem vínculo ativo, com o perfil', minhas.length === 1 && minhas[0].id === A && minhas[0].perfil === 'Editor' && minhas[0].perfil_tipo === 'comum'
   && minhas[0].permissoes.usuarios === 'ver' && minhas[0].permissoes.automacoes === 'editar', JSON.stringify(minhas));
 
+// ---------------------------------------------------------------- integrações externas (metrics)
+await como(uA, A);
+const integ = (await um(`select octaplus.salvar_integracao_externa($1) id`, [{ tipo: 'metrics', url: 'https://abc.supabase.co/', chave: 'sb_secret_x' }])).id;
+const lista = await q('select * from octaplus.integracoes_externas');
+teste('integração: metrics conectado fica na empresa, pendente e sem a chave', lista.length === 1 && lista[0].id === integ && lista[0].status === 'pendente'
+  && lista[0].config.url === 'https://abc.supabase.co' && !JSON.stringify(lista[0]).includes('sb_secret_x'), JSON.stringify(lista));
+await motor();
+teste('integração: a chave vai para os segredos da empresa', (await um(`select valor from octaplus.segredos where empresa_id = $1 and chave = 'metrics_chave'`, [A]))?.valor === 'sb_secret_x');
+await como(uA, A);
+await q(`select octaplus.salvar_integracao_externa($1)`, [{ tipo: 'metrics', url: 'https://outro.supabase.co' }]);
+await motor();
+teste('integração: editar sem chave mantém a chave salva', (await um(`select valor from octaplus.segredos where empresa_id = $1 and chave = 'metrics_chave'`, [A]))?.valor === 'sb_secret_x');
+await como(uA, A);
+teste('integração: só uma de cada tipo por empresa', (await q('select * from octaplus.integracoes_externas')).length === 1);
+teste('integração: tipos ainda não disponíveis são recusados', (await falha(`select octaplus.salvar_integracao_externa($1)`, [{ tipo: 'trello', url: 'https://x.com', chave: 'k' }])).includes('integracao_indisponivel'));
+teste('integração: URL precisa ser https', (await falha(`select octaplus.salvar_integracao_externa($1)`, [{ tipo: 'metrics', url: 'http://x.com', chave: 'k' }])).includes('url_invalida'));
+await como(uB, B);
+teste('integração: Observador não conecta', (await falha(`select octaplus.salvar_integracao_externa($1)`, [{ tipo: 'metrics', url: 'https://x.supabase.co', chave: 'k' }])).includes('sem_permissao'));
+teste('integração: outra empresa não vê', (await q('select * from octaplus.integracoes_externas')).length === 0);
+await como(uA, A);
+await q(`select octaplus.remover_integracao_externa($1)`, [integ]);
+await motor();
+teste('integração: desconectar apaga a integração e a chave', (await q('select * from octaplus.integracoes_externas where empresa_id = $1', [A])).length === 0
+  && !(await um(`select 1 x from octaplus.segredos where empresa_id = $1 and chave = 'metrics_chave'`, [A])));
+
 // ---------------------------------------------------------------- gestão delegada e perfis
 await como(dono);
 const gerente = (await um(`select octaplus.criar_usuario($1, 'gerente@x.com', 'Gê', 'senha-gerente-1', $2) id`, [A, ADMIN_A])).id;

@@ -4,7 +4,8 @@ import { useSession } from '../lib/session';
 import { nivelDe, usePermissoes, type Area, type Permissoes } from '../lib/permissao';
 
 const ABAS: { to: string; end: boolean; label: string; area: Area }[] = [
-  { to: '/app/configuracoes', end: true, label: 'Integrações', area: 'integracoes' },
+  { to: '/app/configuracoes', end: true, label: 'Octadesk', area: 'integracoes' },
+  { to: '/app/configuracoes/integracoes', end: false, label: 'Integrações', area: 'integracoes' },
   { to: '/app/configuracoes/empresa', end: false, label: 'Empresa', area: 'empresa' },
   { to: '/app/configuracoes/usuarios', end: false, label: 'Usuários', area: 'usuarios' },
   { to: '/app/configuracoes/api', end: false, label: 'API', area: 'api' },

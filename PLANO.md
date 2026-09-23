@@ -178,6 +178,10 @@ A análise original do Bridge da Favo (rotas, calibragem com a conta real) está
 
 ## Pendências (dependem de você)
 
+- **Integração com o metrics (Configurações › Integrações)**: grava URL + chave por empresa (chave em `segredos`,
+  `metrics_chave`) e fica "pendente". Falta o motor usar essa conexão para ler clientes/vendas do metrics nos
+  detectores (hoje eles leem o `public.*` local). Trello, Salesforce, HubSpot etc. só aparecem como "Em breve".
+
 - **Supabase** (23/09/2026): projeto próprio `gsndcxdjwblsukxjzwhi`, **sem o metrics**. Instalado com
   `supabase/instalar-projeto-proprio.sql` (base com as tabelas do metrics vazias + migrations + pg_cron) e schema
   `octaplus` exposto no PostgREST. Detectores de vendas/créditos/curvas ficam sem dados até alguém alimentar essas
