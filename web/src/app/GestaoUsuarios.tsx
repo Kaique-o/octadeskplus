@@ -337,17 +337,17 @@ function PerfisDeAcesso({ empresa, perfis, onClose, onMudou }: { empresa: Empres
           <thead>
             <tr className="border-b border-line text-left text-xs uppercase tracking-wide text-muted">
               <th className="py-2 pr-3 font-medium">Perfil</th>
-              {AREAS.map((a) => <th key={a.chave} className="py-2 pr-3 font-medium">{a.label}</th>)}
-              <th className="py-2 pr-3 font-medium">Usuários</th>
+              {AREAS.map((a) => <th key={a.chave} className="px-2 py-2 text-center font-medium">{a.label}</th>)}
+              <th className="px-2 py-2 text-center font-medium">Usuários</th>
               <th className="py-2" />
             </tr>
           </thead>
           <tbody className="divide-y divide-line">
             {perfis.map((p) => (
               <tr key={p.id}>
-                <td className="py-2 pr-3"><PlacaCargo pequena tipo={p.fixo ? 'master' : 'comum'} nome={p.nome} /></td>
-                {AREAS.map((a) => <td key={a.chave} className="py-2 pr-3"><NivelChip nivel={nivelDe(p.permissoes, a.chave)} /></td>)}
-                <td className="py-2 pr-3 tabular-nums">{p.usuarios}</td>
+                <td className="py-2.5 pr-3 font-medium">{p.nome}</td>
+                {AREAS.map((a) => <td key={a.chave} className="whitespace-nowrap px-2 py-2.5 text-center"><NivelTexto nivel={nivelDe(p.permissoes, a.chave)} /></td>)}
+                <td className="px-2 py-2.5 text-center tabular-nums">{p.usuarios}</td>
                 <td className="py-2 text-right">
                   {p.fixo ? <span className="text-xs text-muted" title="Administrador da empresa: tem acesso a tudo e não pode ser alterado">fixo</span> : (
                     <MenuAcoes rotulo={`Ações do perfil ${p.nome}`} itens={[
@@ -378,9 +378,9 @@ function PerfisDeAcesso({ empresa, perfis, onClose, onMudou }: { empresa: Empres
   );
 }
 
-function NivelChip({ nivel }: { nivel: Nivel }) {
-  const cor = { nenhum: 'bg-fog text-muted', ver: 'bg-brand-soft text-blue-800', editar: 'bg-green-100 text-success' }[nivel];
-  return <span className={`chip ${cor}`}>{NIVEIS.find((n) => n.valor === nivel)?.label}</span>;
+// texto simples: só "Sem acesso" fica apagado para destacar o que o perfil libera
+function NivelTexto({ nivel }: { nivel: Nivel }) {
+  return <span className={nivel === 'nenhum' ? 'text-muted' : 'text-ink'}>{NIVEIS.find((n) => n.valor === nivel)?.label}</span>;
 }
 
 function EditorPerfil({ empresa, perfil, onVoltar, onSalvo }: { empresa: EmpresaAlvo; perfil: Perfil | null; onVoltar: () => void; onSalvo: (nome: string) => void }) {
