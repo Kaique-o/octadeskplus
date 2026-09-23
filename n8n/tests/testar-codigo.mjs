@@ -58,6 +58,13 @@ const envio = r.chamadas.find((c) => c.rota === 'POST /chat/send-template');
 teste('template: sucesso com roomKey e registro do envio', r.saida[0].status === 'sucesso' && r.saida[0].resultado.room_key === 'room-1' && r.saida[0].resultado.envio.tipo === 'template');
 teste('template: variáveis no formato [{key, value}] renderizadas', JSON.stringify(envio.body.content.templateMessage.variables) === '[{"key":"nome","value":"Ana"}]');
 teste('template: número padrão como origem e telefone E.164 no destino', envio.body.origin.contact.code === '+5511949602880' && envio.body.target.contact.code === '+5511977776666');
+teste('template: nome no target (vira nome-contato no Octadesk) e sem email quando o cliente não tem', envio.body.target.contact.name === 'Ana Maria' && !('email' in envio.body.target.contact && envio.body.target.contact.email));
+{
+  const comEmail = await executar([job(template(), { evento: { dados: { cliente: { nome: 'Ana Maria', email: 'ana@x.com' } } } })],
+    { 'GET /chat': [], 'POST /chat/send-template': { result: { roomKey: 'r' } } });
+  const e = comEmail.chamadas.find((c) => c.rota === 'POST /chat/send-template');
+  teste('template: email do cliente no target (vira email-contato no Octadesk)', e.body.target.contact.email === 'ana@x.com');
+}
 teste('template: headers X-API-KEY e octa-agent-email', envio.headers['X-API-KEY'] === 'k' && envio.headers['octa-agent-email'] === 'bot@x');
 teste('template: busca conversa aberta sem o 55 primeiro', r.chamadas[0].qs['filters[0][value]'] === '11977776666');
 

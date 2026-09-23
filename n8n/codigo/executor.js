@@ -87,9 +87,11 @@ const acoes = {
     }
 
     const variaveis = Object.entries(cfg.variaveis || {}).map(([key, tpl]) => ({ key, value: render(tpl, dados) || '-' }));
+    // nome e email no target viram as variáveis nome-contato e email-contato do template
     const r = await api('POST', '/chat/send-template', { body: {
       origin: { contact: { channel: 'whatsapp', code: numeroOrigem } },
       target: { contact: { channel: 'whatsapp', code: job.evento.telefone, name: get(dados, 'cliente.nome') || undefined,
+                           email: get(dados, 'cliente.email') || undefined,
                            id: job.evento.octadesk_contact_id || undefined } },
       content: { templateMessage: { id: cfg.template_id, ...(variaveis.length ? { variables: variaveis } : {}) } },
       options: { automaticAssign: cfg.atribuir_automatico !== false },
