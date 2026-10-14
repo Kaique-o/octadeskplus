@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "web:dev"],
+      "port": 5173
+    },
+    {
+      "name": "web-demo",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "set VITE_DEMO=1&& npm --prefix web run dev -- --port 5174 --strictPort"],
+      "port": 5174
+    }
+  ]
+}
